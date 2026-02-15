@@ -15,6 +15,20 @@ namespace PasswordManager.App.Views
         public RegisterView()
         {
             InitializeComponent();
+            DataContextChanged += OnDataContextChanged;
+        }
+
+        private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (e.OldValue is RegisterViewModel oldVm)
+                oldVm.RegisterSuccessful -= OnRegisterSuccessful;
+            if (e.NewValue is RegisterViewModel newVm)
+                newVm.RegisterSuccessful += OnRegisterSuccessful;
+        }
+
+        private void OnRegisterSuccessful(object? sender, EventArgs e)
+        {
+            Coordinator?.OnRegisterSuccess((Window)this);
         }
 
         private void PasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
@@ -23,6 +37,8 @@ namespace PasswordManager.App.Views
             {
                 _syncingPassword = true;
                 PasswordVisibleBox.Text = PasswordBox.Password;
+                if (DataContext is RegisterViewModel vm)
+                    vm.MasterPassword = PasswordBox.Password;
                 _syncingPassword = false;
             }
         }
@@ -33,6 +49,8 @@ namespace PasswordManager.App.Views
             {
                 _syncingPassword = true;
                 PasswordBox.Password = PasswordVisibleBox.Text;
+                if (DataContext is RegisterViewModel vm)
+                    vm.MasterPassword = PasswordVisibleBox.Text;
                 _syncingPassword = false;
             }
         }
@@ -43,6 +61,8 @@ namespace PasswordManager.App.Views
             {
                 _syncingConfirm = true;
                 ConfirmVisibleBox.Text = ConfirmPasswordBox.Password;
+                if (DataContext is RegisterViewModel vm)
+                    vm.ConfirmPassword = ConfirmPasswordBox.Password;
                 _syncingConfirm = false;
             }
         }
@@ -53,6 +73,8 @@ namespace PasswordManager.App.Views
             {
                 _syncingConfirm = true;
                 ConfirmPasswordBox.Password = ConfirmVisibleBox.Text;
+                if (DataContext is RegisterViewModel vm)
+                    vm.ConfirmPassword = ConfirmVisibleBox.Text;
                 _syncingConfirm = false;
             }
         }
@@ -114,16 +136,6 @@ namespace PasswordManager.App.Views
         }
 
         public Services.IAuthCoordinator? Coordinator { get; set; }
-
-        private async void RegisterButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is not RegisterViewModel vm)
-                return;
-            string email = EmailTextBox.Text ?? string.Empty;
-            bool success = await vm.TryRegisterAsync(email, PasswordBox.Password, ConfirmPasswordBox.Password);
-            if (success)
-                Coordinator?.OnRegisterSuccess((Window)this);
-        }
 
         private void BackToLogin_Click(object sender, RoutedEventArgs e)
         {

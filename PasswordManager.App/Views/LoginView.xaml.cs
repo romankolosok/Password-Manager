@@ -20,16 +20,20 @@ namespace PasswordManager.App.Views
         public LoginView()
         {
             InitializeComponent();
+            DataContextChanged += OnDataContextChanged;
         }
 
-        private async void LoginButton_Click(object sender, RoutedEventArgs e)
+        private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (DataContext is not LoginViewModel vm || Coordinator is null)
-                return;
-            string email = EmailTextBox.Text ?? string.Empty;
-            bool success = await vm.TryLoginAsync(email, HiddenPasswordBox.Password);
-            if (success)
-                Coordinator.OnLoginSuccess((Window)this);
+            if (e.OldValue is LoginViewModel oldVm)
+                oldVm.LoginSuccessful -= OnLoginSuccessful;
+            if (e.NewValue is LoginViewModel newVm)
+                newVm.LoginSuccessful += OnLoginSuccessful;
+        }
+
+        private void OnLoginSuccessful(object? sender, EventArgs e)
+        {
+            Coordinator?.OnLoginSuccess((Window)this);
         }
 
         private void RegisterButton_Click(object sender, RoutedEventArgs e)
@@ -43,6 +47,8 @@ namespace PasswordManager.App.Views
             {
                 _isSyncing = true;
                 VisibleTextBox.Text = HiddenPasswordBox.Password;
+                if (DataContext is LoginViewModel vm)
+                    vm.MasterPassword = HiddenPasswordBox.Password;
                 _isSyncing = false;
             }
         }
@@ -53,6 +59,8 @@ namespace PasswordManager.App.Views
             {
                 _isSyncing = true;
                 HiddenPasswordBox.Password = VisibleTextBox.Text;
+                if (DataContext is LoginViewModel vm)
+                    vm.MasterPassword = VisibleTextBox.Text;
                 _isSyncing = false;
             }
         }

@@ -8,6 +8,28 @@
         Title="Register" Height="520" Width="400">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#0078D7"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#B0C4DE"/>
+                                <Setter Property="Foreground" Value="#2F4F6F"/>
+                                <Setter TargetName="border" Property="Opacity" Value="1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     <Grid>
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="250">
@@ -30,8 +52,8 @@
                 </TextBlock>
             </Grid>
 
-            <TextBlock Text="{Binding RegisterError}" Foreground="#C42B1C" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"
-                       Visibility="{Binding RegisterErrorVisible, Converter={StaticResource BoolToVisibility}}"/>
+            <TextBlock Text="{Binding DisplayError}" Foreground="#C42B1C" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"
+                       Visibility="{Binding DisplayErrorVisible, Converter={StaticResource BoolToVisibility}}"/>
 
             <Grid Margin="0,0,0,15">
                 <PasswordBox x:Name="PasswordBox" Height="30" Padding="5,4,30,0" FontSize="14" PasswordChanged="PasswordBox_PasswordChanged"/>
@@ -75,12 +97,48 @@
                 </ToggleButton>
             </Grid>
 
-            <Button Content="Register" Cursor="Hand" Height="35" FontSize="16" Background="#0078D7" Foreground="White" BorderThickness="0" Click="RegisterButton_Click">
-                <Button.Resources>
-                    <Style TargetType="Border">
-                        <Setter Property="CornerRadius" Value="3"/>
-                    </Style>
-                </Button.Resources>
+            <Button Height="35" FontSize="16" Command="{Binding RegisterCommand}"
+                    Style="{StaticResource PrimaryButtonStyle}">
+                <Grid>
+                    <TextBlock Text="Register" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <Ellipse Width="28" Height="28" Stroke="#070521" StrokeThickness="5" Fill="Transparent"
+                             StrokeDashArray="0.4 0.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                             VerticalAlignment="Center" HorizontalAlignment="Center"
+                             RenderTransformOrigin="0.5,0.5">
+                        <Ellipse.RenderTransform>
+                            <RotateTransform Angle="0"/>
+                        </Ellipse.RenderTransform>
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard RepeatBehavior="Forever">
+                                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                                     From="0" To="360" Duration="0:0:0.8"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                </Grid>
             </Button>
 
             <Button Content="Back to Login" Cursor="Hand" Height="35" FontSize="14" Background="Transparent" Foreground="#0078D7" BorderThickness="0" Margin="0,12,0,0" Click="BackToLogin_Click"/>

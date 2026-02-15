@@ -1,0 +1,93 @@
+<UserControl x:Class="PasswordManager.App.Views.VaultListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="700">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Account: email -->
+        <TextBlock Grid.Row="0" Text="{Binding CurrentUserEmail, StringFormat='Account: {0}'}"
+                   FontSize="14" Foreground="Gray" Margin="0,0,0,12"/>
+
+        <!-- Search, Add, Lock -->
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                     Height="32" Padding="8,4" FontSize="14" VerticalContentAlignment="Center">
+                <TextBox.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="4"/>
+                    </Style>
+                </TextBox.Resources>
+            </TextBox>
+            <Button Grid.Column="1" Content="+ Add" Command="{Binding AddEntryCommand}"
+                    Height="32" Padding="16,0" Margin="8,0,0,0" Cursor="Hand"
+                    Background="#0078D7" Foreground="White" BorderThickness="0"/>
+            <Button Grid.Column="2" Content="🔒 Lock" Command="{Binding LockCommand}"
+                    Height="32" Padding="16,0" Margin="8,0,0,0" Cursor="Hand"
+                    Background="Transparent" Foreground="#0078D7" BorderThickness="1" BorderBrush="#0078D7"/>
+        </Grid>
+
+        <!-- List of entries -->
+        <Border Grid.Row="3" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding Entries}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="12,10" BorderBrush="#E8E8E8" BorderThickness="0,0,0,1">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- Row 1: icon + website + copy user / copy pass -->
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="🌐" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding WebsiteName}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                                        <Button Content="📋" ToolTip="Copy username" Command="{Binding DataContext.CopyUsernameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" Width="32" Height="28" Margin="0,0,4,0" Cursor="Hand"
+                                                Background="Transparent" BorderThickness="0"/>
+                                        <Button Content="📋" ToolTip="Copy password" Command="{Binding DataContext.CopyPasswordCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" Width="32" Height="28" Cursor="Hand"
+                                                Background="Transparent" BorderThickness="0"/>
+                                    </StackPanel>
+                                    <!-- Row 2: username + edit / delete -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Username}" FontSize="12" Foreground="Gray" Margin="24,4,0,0"/>
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,4,0,0">
+                                        <Button Content="✏️" ToolTip="Edit" Command="{Binding DataContext.EditEntryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" Width="32" Height="28" Margin="0,0,4,0" Cursor="Hand"
+                                                Background="Transparent" BorderThickness="0"/>
+                                        <Button Content="🗑️" ToolTip="Delete" Command="{Binding DataContext.DeleteEntryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" Width="32" Height="28" Cursor="Hand"
+                                                Background="Transparent" BorderThickness="0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Status -->
+        <TextBlock Grid.Row="4" Text="{Binding StatusText}" FontSize="12" Foreground="Gray" Margin="0,8,0,0"/>
+    </Grid>
+</UserControl>

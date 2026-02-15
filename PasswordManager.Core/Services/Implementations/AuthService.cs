@@ -18,6 +18,7 @@ namespace PasswordManager.Core.Services.Implementations
         private readonly EmailValidator _emailValidator = new();
 
         public Guid? CurrentUserId { get; private set; }
+        public string? CurrentUserEmail { get; private set; }
 
         public AuthService(ICryptoService cryptoService,
             IVaultRepository vaultRepository,
@@ -83,6 +84,7 @@ namespace PasswordManager.Core.Services.Implementations
             }
 
             CurrentUserId = user.Id;
+            CurrentUserEmail = user.Email;
             _sessionService.SetDerivedKey(key);
 
             return Result.Ok();
@@ -115,6 +117,7 @@ namespace PasswordManager.Core.Services.Implementations
                 if (decryptedToken.Success)
                 {
                     CurrentUserId = user.Id;
+                    CurrentUserEmail = user.Email;
                     _sessionService.SetDerivedKey(key);
                     return Result.Ok();
                 }
@@ -132,6 +135,7 @@ namespace PasswordManager.Core.Services.Implementations
         public void Lock()
         {
             CurrentUserId = null;
+            CurrentUserEmail = null;
             _sessionService.ClearSession();
         }
 

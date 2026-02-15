@@ -65,6 +65,7 @@ namespace PasswordManager.App
             // Windows
             services.AddTransient<LoginView>();
             services.AddTransient<RegisterView>();
+            services.AddTransient<VaultListView>();
             services.AddSingleton<MainWindow>();
 
             // STEP 3: Build the service provider

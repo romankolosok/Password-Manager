@@ -13,7 +13,9 @@ namespace PasswordManager.Core.Services.Interfaces
         string? CurrentUserEmail { get; }
 
         public void SetDerivedKey(byte[] key);
-        public void SetUser(Guid userId, string email);
+        /// <param name="accessToken">Supabase session access token (JWT) for PostgREST; required for RLS.</param>
+        public void SetUser(Guid userId, string email, string? accessToken = null);
+        string? GetAccessToken();
 
         public byte[] GetDerivedKey();
 

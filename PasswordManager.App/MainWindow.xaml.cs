@@ -4,38 +4,70 @@ using Microsoft.Extensions.DependencyInjection;
 using PasswordManager.App.Services;
 using PasswordManager.App.ViewModels;
 using PasswordManager.App.Views;
+using PasswordManager.Core.Services.Interfaces;
 using VaultEntry = PasswordManager.Core.Models.VaultEntry;
 
 namespace PasswordManager.App
 {
     public partial class MainWindow : Window
     {
+        private readonly IServiceProvider _serviceProvider;
         private bool _vaultContentLoaded;
         private bool _wasHiddenForLock;
         private VaultListViewModel? _currentVaultListViewModel;
 
-        public MainWindow()
+        public MainWindow(IServiceProvider serviceProvider)
         {
+            _serviceProvider = serviceProvider;
             InitializeComponent();
+            PreviewMouseMove += ResetInactivityTimer;
+            PreviewKeyDown += ResetInactivityTimer;
+        }
+
+        private void ResetInactivityTimer(object sender, EventArgs e)
+        {
+            var session = _serviceProvider.GetService<ISessionService>();
+            if (session?.IsActive() == true)
+                session.ResetInactivityTimer();
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             if (_vaultContentLoaded) return;
             _vaultContentLoaded = true;
+            ShowVaultListView();
+        }
 
-            var app = Application.Current as App;
-            if (app?.ServiceProvider == null) return;
-
-            var view = app.ServiceProvider.GetRequiredService<VaultListView>();
-            var viewModel = app.ServiceProvider.GetRequiredService<VaultListViewModel>();
+        /// <summary>Navigates to the vault list view and loads entries.</summary>
+        private void ShowVaultListView()
+        {
+            var viewModel = _serviceProvider.GetRequiredService<VaultListViewModel>();
+            var view = _serviceProvider.GetRequiredService<VaultListView>();
 
             SubscribeToVaultListViewModel(viewModel);
 
             view.DataContext = viewModel;
-            Content = view;
+            MainContent.Content = view;
 
             _ = viewModel.LoadEntriesCommand.ExecuteAsync(null);
+        }
+
+        /// <summary>Navigates to add (entry=null) or edit (entry) view.</summary>
+        private void ShowEntryDetailView(VaultEntry? entry)
+        {
+            var viewModel = _serviceProvider.GetRequiredService<EntryDetailViewModel>();
+            var view = _serviceProvider.GetRequiredService<EntryDetailView>();
+
+            viewModel.EntrySaved += OnEntryDetailSaved;
+            viewModel.Cancelled += OnEntryDetailCancelled;
+
+            if (entry != null)
+                viewModel.LoadEntry(entry);
+            else
+                viewModel.NewEntry();
+
+            view.DataContext = viewModel;
+            MainContent.Content = view;
         }
 
         private void SubscribeToVaultListViewModel(VaultListViewModel vm)
@@ -68,8 +100,7 @@ namespace PasswordManager.App
                     _currentVaultListViewModel = null;
             }
 
-            var app = Application.Current as App;
-            var coordinator = app?.ServiceProvider?.GetService<IAuthCoordinator>();
+            var coordinator = _serviceProvider.GetService<IAuthCoordinator>();
             if (coordinator != null)
             {
                 _wasHiddenForLock = true;
@@ -80,65 +111,42 @@ namespace PasswordManager.App
 
         private void MainWindow_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (IsVisible && _wasHiddenForLock && Content is Views.VaultListView vaultView && vaultView.DataContext is VaultListViewModel vm)
+            if (!IsVisible || !_wasHiddenForLock) return;
+            _wasHiddenForLock = false;
+
+            if (MainContent.Content is EntryDetailView entryDetailView && entryDetailView.DataContext is EntryDetailViewModel entryVm)
             {
-                _wasHiddenForLock = false;
-                vm.Attach();
-                SubscribeToVaultListViewModel(vm);
-                _ = vm.LoadEntriesCommand.ExecuteAsync(null);
+                entryVm.EntrySaved -= OnEntryDetailSaved;
+                entryVm.Cancelled -= OnEntryDetailCancelled;
             }
+
+            UnsubscribeFromVaultListViewModel();
+            ShowVaultListView();
         }
 
         private void OnNavigateToEntryDetail(object? sender, VaultEntry? e)
         {
-            var app = Application.Current as App;
-            if (app?.ServiceProvider == null) return;
-
-            var view = app.ServiceProvider.GetRequiredService<Views.EntryDetailView>();
-            var viewModel = app.ServiceProvider.GetRequiredService<EntryDetailViewModel>();
-
-            viewModel.EntrySaved += OnEntryDetailSaved;
-            viewModel.Cancelled += OnEntryDetailCancelled;
-
-            if (e != null)
-                viewModel.LoadEntry(e);
-            else
-                viewModel.NewEntry();
-
-            view.DataContext = viewModel;
-            Content = view;
+            ShowEntryDetailView(e);
         }
 
         private void OnEntryDetailSaved(object? sender, EventArgs e)
         {
-            NavigateBackFromEntryDetail(sender as EntryDetailViewModel);
-        }
-
-        private void OnEntryDetailCancelled(object? sender, EventArgs e)
-        {
-            NavigateBackFromEntryDetail(sender as EntryDetailViewModel);
-        }
-
-        private void NavigateBackFromEntryDetail(EntryDetailViewModel? vm)
-        {
-            if (vm != null)
+            if (sender is EntryDetailViewModel vm)
             {
                 vm.EntrySaved -= OnEntryDetailSaved;
                 vm.Cancelled -= OnEntryDetailCancelled;
             }
+            ShowVaultListView();
+        }
 
-            var app = Application.Current as App;
-            if (app?.ServiceProvider == null) return;
-
-            var view = app.ServiceProvider.GetRequiredService<Views.VaultListView>();
-            var viewModel = app.ServiceProvider.GetRequiredService<VaultListViewModel>();
-
-            SubscribeToVaultListViewModel(viewModel);
-
-            view.DataContext = viewModel;
-            Content = view;
-
-            _ = viewModel.LoadEntriesCommand.ExecuteAsync(null);
+        private void OnEntryDetailCancelled(object? sender, EventArgs e)
+        {
+            if (sender is EntryDetailViewModel vm)
+            {
+                vm.EntrySaved -= OnEntryDetailSaved;
+                vm.Cancelled -= OnEntryDetailCancelled;
+            }
+            ShowVaultListView();
         }
     }
 }

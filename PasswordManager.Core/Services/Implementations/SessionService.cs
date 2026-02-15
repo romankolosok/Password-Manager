@@ -8,6 +8,7 @@ namespace PasswordManager.Core.Services.Implementations
         private byte[]? _derivedKey;
         private Guid? _currentUserId;
         private string? _currentUserEmail;
+        private string? _accessToken;
         private readonly System.Timers.Timer _timer;
         private readonly object _lock = new object();
         private bool _disposed = false;
@@ -94,12 +95,21 @@ namespace PasswordManager.Core.Services.Implementations
             }
         }
 
-        public void SetUser(Guid userId, string email)
+        public void SetUser(Guid userId, string email, string? accessToken = null)
         {
             lock (_lock)
             {
                 _currentUserId = userId;
                 _currentUserEmail = email;
+                _accessToken = accessToken;
+            }
+        }
+
+        public string? GetAccessToken()
+        {
+            lock (_lock)
+            {
+                return _accessToken;
             }
         }
 
@@ -128,6 +138,7 @@ namespace PasswordManager.Core.Services.Implementations
                 _timer.Stop();
                 _currentUserId = null;
                 _currentUserEmail = null;
+                _accessToken = null;
 
                 if (_derivedKey != null)
                 {

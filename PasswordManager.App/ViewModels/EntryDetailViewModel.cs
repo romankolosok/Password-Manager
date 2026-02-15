@@ -16,28 +16,35 @@ namespace PasswordManager.App.ViewModels
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PasswordStrength))]
         [NotifyPropertyChangedFor(nameof(PasswordStrengthLabel))]
+        [NotifyPropertyChangedFor(nameof(HasUnsavedChanges))]
         private string _websiteName = string.Empty;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PasswordStrength))]
         [NotifyPropertyChangedFor(nameof(PasswordStrengthLabel))]
+        [NotifyPropertyChangedFor(nameof(HasUnsavedChanges))]
         private string _url = string.Empty;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasUnsavedChanges))]
         private string _username = string.Empty;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PasswordStrength))]
         [NotifyPropertyChangedFor(nameof(PasswordStrengthLabel))]
+        [NotifyPropertyChangedFor(nameof(HasUnsavedChanges))]
         private string _password = string.Empty;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasUnsavedChanges))]
         private string _notes = string.Empty;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasUnsavedChanges))]
         private string _category = string.Empty;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasUnsavedChanges))]
         private bool _isFavorite;
 
         [ObservableProperty]
@@ -119,8 +126,13 @@ namespace PasswordManager.App.ViewModels
             UpdatePasswordStrength();
         }
 
-        /// <summary>Returns true if any field has data (for unsaved-changes check).</summary>
-        public bool HasData =>
+        /// <summary>Returns true if there are unsaved changes (for abandon-changes dialog).</summary>
+        public bool HasUnsavedChanges =>
+            IsEditing
+                ? HasChangesFromLoaded()
+                : HasAnyData();
+
+        private bool HasAnyData() =>
             !string.IsNullOrWhiteSpace(WebsiteName) ||
             !string.IsNullOrWhiteSpace(Url) ||
             !string.IsNullOrWhiteSpace(Username) ||
@@ -128,6 +140,21 @@ namespace PasswordManager.App.ViewModels
             !string.IsNullOrWhiteSpace(Notes) ||
             !string.IsNullOrWhiteSpace(Category) ||
             IsFavorite;
+
+        private bool HasChangesFromLoaded()
+        {
+            if (CurrentEntry == null) return HasAnyData();
+            return !StringEquals(WebsiteName, CurrentEntry.WebsiteName) ||
+                   !StringEquals(Url, CurrentEntry.Url) ||
+                   !StringEquals(Username, CurrentEntry.Username) ||
+                   !StringEquals(Password, CurrentEntry.Password) ||
+                   !StringEquals(Notes, CurrentEntry.Notes) ||
+                   !StringEquals(Category, CurrentEntry.Category) ||
+                   IsFavorite != CurrentEntry.IsFavorite;
+        }
+
+        private static bool StringEquals(string? a, string? b) =>
+            (a ?? string.Empty).Trim() == (b ?? string.Empty).Trim();
 
         [RelayCommand]
         private async Task SaveAsync()
@@ -191,7 +218,7 @@ namespace PasswordManager.App.ViewModels
         [RelayCommand]
         private void Cancel()
         {
-            if (HasData && MessageBox.Show(
+            if (HasUnsavedChanges && MessageBox.Show(
                     "You have unsaved data. Abandon changes?",
                     "Confirm",
                     MessageBoxButton.YesNo,

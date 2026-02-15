@@ -9,7 +9,11 @@ namespace PasswordManager.Core.Services.Interfaces
 
         event EventHandler? VaultLocked;
 
+        Guid? CurrentUserId { get; }
+        string? CurrentUserEmail { get; }
+
         public void SetDerivedKey(byte[] key);
+        public void SetUser(Guid userId, string email);
 
         public byte[] GetDerivedKey();
 

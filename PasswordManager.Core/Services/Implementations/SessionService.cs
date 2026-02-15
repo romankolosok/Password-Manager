@@ -6,6 +6,8 @@ namespace PasswordManager.Core.Services.Implementations
     public class SessionService : ISessionService, IDisposable
     {
         private byte[]? _derivedKey;
+        private Guid? _currentUserId;
+        private string? _currentUserEmail;
         private readonly System.Timers.Timer _timer;
         private readonly object _lock = new object();
         private bool _disposed = false;
@@ -54,6 +56,28 @@ namespace PasswordManager.Core.Services.Implementations
             ClearSession();
         }
 
+        public Guid? CurrentUserId
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _currentUserId;
+                }
+            }
+        }
+
+        public string? CurrentUserEmail
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _currentUserEmail;
+                }
+            }
+        }
+
         public void SetDerivedKey(byte[] key)
         {
             lock (_lock)
@@ -67,6 +91,15 @@ namespace PasswordManager.Core.Services.Implementations
 
                 _derivedKey = key;
                 ResetInactivityTimerInternal();
+            }
+        }
+
+        public void SetUser(Guid userId, string email)
+        {
+            lock (_lock)
+            {
+                _currentUserId = userId;
+                _currentUserEmail = email;
             }
         }
 
@@ -93,6 +126,8 @@ namespace PasswordManager.Core.Services.Implementations
                     return;
 
                 _timer.Stop();
+                _currentUserId = null;
+                _currentUserEmail = null;
 
                 if (_derivedKey != null)
                 {

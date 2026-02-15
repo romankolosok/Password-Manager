@@ -28,19 +28,16 @@ namespace PasswordManager.Core.Services.Implementations
         private readonly ICryptoService _cryptoService;
         private readonly ISessionService _sessionService;
         private readonly IVaultRepository _vaultRepository;
-        private readonly IAuthService _authService;
 
         private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
 
         public VaultService(ICryptoService crypto,
             ISessionService session,
-            IVaultRepository repository,
-            IAuthService auth)
+            IVaultRepository repository)
         {
             _cryptoService = crypto;
             _sessionService = session;
             _vaultRepository = repository;
-            _authService = auth;
         }
 
         public async Task<Result<List<VaultEntry>>> GetAllEntriesAsync()
@@ -48,7 +45,7 @@ namespace PasswordManager.Core.Services.Implementations
             if (!_sessionService.IsActive())
                 return Result<List<VaultEntry>>.Fail("Vault is locked");
 
-            Guid? userId = _authService.CurrentUserId;
+            Guid? userId = _sessionService.CurrentUserId;
             if (userId == null)
                 return Result<List<VaultEntry>>.Fail("No user logged in");
 
@@ -75,7 +72,7 @@ namespace PasswordManager.Core.Services.Implementations
             if (!Guid.TryParse(id, out Guid entryId))
                 return Result<VaultEntry>.Fail("Invalid entry id");
 
-            Guid? userId = _authService.CurrentUserId;
+            Guid? userId = _sessionService.CurrentUserId;
             if (userId == null)
                 return Result<VaultEntry>.Fail("No user logged in");
 
@@ -96,12 +93,13 @@ namespace PasswordManager.Core.Services.Implementations
             if (!_sessionService.IsActive())
                 return Result.Fail("Vault is locked");
 
-            Guid? userId = _authService.CurrentUserId;
+            Guid? userId = _sessionService.CurrentUserId;
             if (userId == null)
                 return Result.Fail("No user logged in");
 
-            Guid effectiveId = entry.Id == Guid.Empty ? Guid.NewGuid() : entry.Id;
-            DateTime effectiveCreated = entry.Id == Guid.Empty ? DateTime.UtcNow : entry.CreatedAt;
+            bool isNew = entry.Id == Guid.Empty || entry.CreatedAt == default;
+            Guid effectiveId = isNew ? Guid.NewGuid() : entry.Id;
+            DateTime effectiveCreated = isNew ? DateTime.UtcNow : entry.CreatedAt;
             DateTime effectiveUpdated = DateTime.UtcNow;
 
             string json = SerializePayload(entry);
@@ -137,7 +135,7 @@ namespace PasswordManager.Core.Services.Implementations
             if (!Guid.TryParse(entryId, out Guid id))
                 return Result.Fail("Invalid entry id");
 
-            Guid? userId = _authService.CurrentUserId;
+            Guid? userId = _sessionService.CurrentUserId;
             if (userId == null)
                 return Result.Fail("No user logged in");
 

@@ -178,6 +178,28 @@ namespace PasswordManager.App.ViewModels
             _sessionService.VaultLocked += OnVaultLocked;
         }
 
+        private bool _isAttached = true;
+
+        /// <summary>Re-subscribes to session events after Detach. Call when this ViewModel is shown again after lock.</summary>
+        public void Attach()
+        {
+            if (!_isAttached)
+            {
+                _sessionService.VaultLocked += OnVaultLocked;
+                _isAttached = true;
+            }
+        }
+
+        /// <summary>Unsubscribes from session events. Call when this ViewModel is no longer displayed to allow GC.</summary>
+        public void Detach()
+        {
+            if (_isAttached)
+            {
+                _sessionService.VaultLocked -= OnVaultLocked;
+                _isAttached = false;
+            }
+        }
+
         private void OnVaultLocked(object? sender, EventArgs e)
         {
             Application.Current.Dispatcher.Invoke(() =>

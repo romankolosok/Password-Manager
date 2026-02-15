@@ -59,7 +59,7 @@ namespace PasswordManager.Core.Services.Implementations
 
             if (existingEntry == null)
             {
-                _dbContext.VaultEntries.Add(entry);
+                await _dbContext.VaultEntries.AddAsync(entry);
             }
             else
             {
@@ -67,6 +67,8 @@ namespace PasswordManager.Core.Services.Implementations
                 existingEntry.UpdatedAt = DateTime.UtcNow;
                 _dbContext.VaultEntries.Update(existingEntry);
             }
+
+            await _dbContext.SaveChangesAsync();
         }
     }
 }

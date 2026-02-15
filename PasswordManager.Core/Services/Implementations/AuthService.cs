@@ -17,8 +17,8 @@ namespace PasswordManager.Core.Services.Implementations
         private readonly PasswordValidator _passwordValidator = new();
         private readonly EmailValidator _emailValidator = new();
 
-        public Guid? CurrentUserId { get; private set; }
-        public string? CurrentUserEmail { get; private set; }
+        public Guid? CurrentUserId => _sessionService.CurrentUserId;
+        public string? CurrentUserEmail => _sessionService.CurrentUserEmail;
 
         public AuthService(ICryptoService cryptoService,
             IVaultRepository vaultRepository,
@@ -83,8 +83,7 @@ namespace PasswordManager.Core.Services.Implementations
                 return Result.Fail("Failed to create account. Please try again.");
             }
 
-            CurrentUserId = user.Id;
-            CurrentUserEmail = user.Email;
+            _sessionService.SetUser(user.Id, user.Email);
             _sessionService.SetDerivedKey(key);
 
             return Result.Ok();
@@ -116,8 +115,7 @@ namespace PasswordManager.Core.Services.Implementations
 
                 if (decryptedToken.Success)
                 {
-                    CurrentUserId = user.Id;
-                    CurrentUserEmail = user.Email;
+                    _sessionService.SetUser(user.Id, user.Email);
                     _sessionService.SetDerivedKey(key);
                     return Result.Ok();
                 }
@@ -134,8 +132,6 @@ namespace PasswordManager.Core.Services.Implementations
 
         public void Lock()
         {
-            CurrentUserId = null;
-            CurrentUserEmail = null;
             _sessionService.ClearSession();
         }
 

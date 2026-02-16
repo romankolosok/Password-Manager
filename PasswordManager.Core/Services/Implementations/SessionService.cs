@@ -5,6 +5,8 @@ namespace PasswordManager.Core.Services.Implementations
 {
     public class SessionService : ISessionService, IDisposable
     {
+        private static readonly TimeSpan DefaultInactivityTimeout = TimeSpan.FromMinutes(5);
+
         private byte[]? _derivedKey;
         private Guid? _currentUserId;
         private string? _currentUserEmail;
@@ -12,34 +14,31 @@ namespace PasswordManager.Core.Services.Implementations
         private readonly System.Timers.Timer _timer;
         private readonly object _lock = new object();
         private bool _disposed = false;
-        private TimeSpan _inactivityTimeout = TimeSpan.FromMinutes(5);
+        private TimeSpan _inactivityTimeout = DefaultInactivityTimeout;
+
         public TimeSpan InactivityTimeout
         {
             get
             {
                 lock (_lock)
                 {
+                    ThrowIfDisposed();
                     return _inactivityTimeout;
                 }
             }
             set
             {
+                if (value <= TimeSpan.Zero)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(value), "Inactivity timeout must be positive.");
+                }
+
                 lock (_lock)
                 {
+                    ThrowIfDisposed();
                     _inactivityTimeout = value;
-                    if (_timer.Enabled)
-                    {
-                        ResetInactivityTimerInternal();
-                    }
+                    ResetInactivityTimerInternal();
                 }
-            }
-        }
-
-        private void ThrowIfDisposed()
-        {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(nameof(SessionService));
             }
         }
 
@@ -47,14 +46,12 @@ namespace PasswordManager.Core.Services.Implementations
 
         public SessionService()
         {
-            _timer = new System.Timers.Timer();
-            _timer.AutoReset = false;
+            _timer = new System.Timers.Timer
+            {
+                AutoReset = false,
+                Interval = _inactivityTimeout.TotalMilliseconds
+            };
             _timer.Elapsed += OnTimerElapsed;
-        }
-
-        private void OnTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
-        {
-            ClearSession();
         }
 
         public Guid? CurrentUserId
@@ -63,6 +60,7 @@ namespace PasswordManager.Core.Services.Implementations
             {
                 lock (_lock)
                 {
+                    ThrowIfDisposed();
                     return _currentUserId;
                 }
             }
@@ -74,6 +72,7 @@ namespace PasswordManager.Core.Services.Implementations
             {
                 lock (_lock)
                 {
+                    ThrowIfDisposed();
                     return _currentUserEmail;
                 }
             }
@@ -81,6 +80,11 @@ namespace PasswordManager.Core.Services.Implementations
 
         public void SetDerivedKey(byte[] key)
         {
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+
             lock (_lock)
             {
                 ThrowIfDisposed();
@@ -97,8 +101,14 @@ namespace PasswordManager.Core.Services.Implementations
 
         public void SetUser(Guid userId, string email, string? accessToken = null)
         {
+            if (email == null)
+            {
+                throw new ArgumentNullException(nameof(email));
+            }
+
             lock (_lock)
             {
+                ThrowIfDisposed();
                 _currentUserId = userId;
                 _currentUserEmail = email;
                 _accessToken = accessToken;
@@ -109,6 +119,7 @@ namespace PasswordManager.Core.Services.Implementations
         {
             lock (_lock)
             {
+                ThrowIfDisposed();
                 return _accessToken;
             }
         }
@@ -124,7 +135,7 @@ namespace PasswordManager.Core.Services.Implementations
                     throw new InvalidOperationException("No active session. Derived key is not set.");
                 }
 
-                return _derivedKey;
+                return (byte[])_derivedKey.Clone();
             }
         }
 
@@ -133,7 +144,9 @@ namespace PasswordManager.Core.Services.Implementations
             lock (_lock)
             {
                 if (_disposed)
+                {
                     return;
+                }
 
                 _timer.Stop();
                 _currentUserId = null;
@@ -147,7 +160,6 @@ namespace PasswordManager.Core.Services.Implementations
                 }
             }
 
-            // Invoke event outside the lock to prevent potential deadlocks
             VaultLocked?.Invoke(this, EventArgs.Empty);
         }
 
@@ -155,7 +167,8 @@ namespace PasswordManager.Core.Services.Implementations
         {
             lock (_lock)
             {
-                return _derivedKey != null && !_disposed;
+                ThrowIfDisposed();
+                return _derivedKey != null;
             }
         }
 
@@ -168,9 +181,13 @@ namespace PasswordManager.Core.Services.Implementations
             }
         }
 
+        private void OnTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
+        {
+            ClearSession();
+        }
+
         private void ResetInactivityTimerInternal()
         {
-            // Must be called within lock
             _timer.Stop();
             _timer.Interval = _inactivityTimeout.TotalMilliseconds;
             _timer.Start();
@@ -179,6 +196,14 @@ namespace PasswordManager.Core.Services.Implementations
         private void ClearKeyFromMemory(byte[] key)
         {
             Array.Clear(key, 0, key.Length);
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(SessionService));
+            }
         }
 
         public void Dispose()
@@ -190,7 +215,9 @@ namespace PasswordManager.Core.Services.Implementations
         protected virtual void Dispose(bool disposing)
         {
             if (_disposed)
+            {
                 return;
+            }
 
             if (disposing)
             {

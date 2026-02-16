@@ -1,6 +1,6 @@
-using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using PasswordManager.App.Views;
+using System.Windows;
 
 namespace PasswordManager.App.Services
 {

@@ -1,15 +1,13 @@
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using PasswordManager.Core.Entities;
+using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Core.Validators;
-using Supabase;
 using Supabase.Gotrue;
 using System;
 using System.Linq;
-using System.Net.Http;
 using System.Security.Cryptography;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace PasswordManager.Core.Services.Implementations
@@ -17,31 +15,120 @@ namespace PasswordManager.Core.Services.Implementations
     public class AuthService : IAuthService
     {
         private readonly Supabase.Client _supabase;
-        private readonly IConfiguration _configuration;
         private readonly ICryptoService _cryptoService;
-        private readonly IVaultRepository _vaultRepository;
+        private readonly IUserProfileService _userProfileService;
         private readonly ISessionService _sessionService;
+        private readonly ISupabaseExceptionMapper _exceptionMapper;
+        private readonly ILogger<AuthService> _logger;
         private readonly PasswordValidator _passwordValidator = new();
         private readonly EmailValidator _emailValidator = new();
-        private static readonly JsonSerializerOptions JsonOptions = new();
 
         public Guid? CurrentUserId => _sessionService.CurrentUserId;
         public string? CurrentUserEmail => _sessionService.CurrentUserEmail;
 
-        public AuthService(Supabase.Client supabase,
-            IConfiguration configuration,
+        public AuthService(
+            Supabase.Client supabase,
             ICryptoService cryptoService,
-            IVaultRepository vaultRepository,
-            ISessionService sessionService)
+            IUserProfileService userProfileService,
+            ISessionService sessionService,
+            ISupabaseExceptionMapper exceptionMapper,
+            ILogger<AuthService> logger)
         {
             _supabase = supabase;
-            _configuration = configuration;
             _cryptoService = cryptoService;
-            _vaultRepository = vaultRepository;
+            _userProfileService = userProfileService;
             _sessionService = sessionService;
+            _exceptionMapper = exceptionMapper;
+            _logger = logger;
         }
 
         public async Task<Result> RegisterAsync(string email, string masterPassword)
+        {
+            // Validate inputs
+            var validationResult = ValidateCredentials(email, masterPassword);
+            if (!validationResult.Success)
+            {
+                return validationResult;
+            }
+
+            // Attempt registration
+            var sessionResult = await CreateAuthSessionAsync(email, masterPassword);
+            if (!sessionResult.Success)
+            {
+                return sessionResult;
+            }
+
+            var session = sessionResult.Value;
+            var authUserId = Guid.Parse(session.User!.Id);
+
+            // Create cryptographic materials
+            var (salt, key, verificationToken) = CreateCryptographicMaterials(masterPassword);
+
+            // Create user profile
+            var profileResult = await CreateUserProfileAsync(authUserId, salt, verificationToken, key, session.AccessToken!);
+            if (!profileResult.Success)
+            {
+                _logger.LogError("Failed to create profile for user {UserId}", authUserId);
+                return profileResult;
+            }
+
+            // Set session
+            _sessionService.SetUser(authUserId, session.User.Email ?? email, session.AccessToken);
+            _sessionService.SetDerivedKey(key);
+
+            _logger.LogInformation("User {UserId} registered successfully", authUserId);
+            return Result.Ok();
+        }
+
+        public async Task<Result> LoginAsync(string email, string masterPassword)
+        {
+            // Authenticate with Supabase
+            var sessionResult = await AuthenticateAsync(email, masterPassword);
+            if (!sessionResult.Success)
+            {
+                return sessionResult;
+            }
+
+            var session = sessionResult.Value;
+            var authUserId = Guid.Parse(session.User!.Id);
+
+            // Set temporary session for profile retrieval
+            _sessionService.SetUser(authUserId, session.User.Email ?? email, session.AccessToken);
+
+            // Retriev      
+            var verificationResult = await VerifyMasterPasswordAsync(authUserId, masterPassword);
+            if (!verificationResult.Success)
+            {
+                _sessionService.ClearSession();
+                return verificationResult;
+            }
+
+            var key = verificationResult.Value;
+            _sessionService.SetDerivedKey(key);
+
+            _logger.LogInformation("User {UserId} logged in successfully", authUserId);
+            return Result.Ok();
+        }
+
+        public void Lock()
+        {
+            _ = _supabase.Auth.SignOut();
+            _sessionService.ClearSession();
+            _logger.LogInformation("Session locked");
+        }
+
+        public bool IsLocked()
+        {
+            return !_sessionService.IsActive();
+        }
+
+        public Task<Result> ChangeMasterPasswordAsync(string currentPassword, string newPassword)
+        {
+            _logger.LogWarning("ChangeMasterPassword called but not implemented");
+            return Task.FromResult(Result.Fail("Not implemented."));
+        }
+
+        private Result ValidateCredentials(string email, string masterPassword)
         {
             var emailValidationResult = _emailValidator.Validate(new EmailInput { Email = email });
             if (!emailValidationResult.IsValid)
@@ -57,90 +144,94 @@ namespace PasswordManager.Core.Services.Implementations
                 return Result.Fail(errors);
             }
 
-            Session? session;
+            return Result.Ok();
+        }
+
+        private async Task<Result<Session>> CreateAuthSessionAsync(string email, string masterPassword)
+        {
             try
             {
-                session = await _supabase.Auth.SignUp(email, masterPassword);
+                var session = await _supabase.Auth.SignUp(email, masterPassword);
+
+                if (session?.User == null)
+                {
+                    return Result<Session>.Fail("Email confirmation may be required. Check your email, then sign in.");
+                }
+
+                return Result<Session>.Ok(session);
             }
             catch (Exception ex)
             {
-                string msg = ex.Message;
-                if (msg.Contains("already registered", StringComparison.OrdinalIgnoreCase) ||
-                    msg.Contains("user_already_exists", StringComparison.OrdinalIgnoreCase) ||
-                    msg.Contains("422", StringComparison.OrdinalIgnoreCase))
-                    return Result.Fail("An account with this email already exists. Sign in instead.");
-                return Result.Fail(msg);
+                _logger.LogWarning(ex, "Registration failed for {Email}", email);
+                return Result<Session>.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
+        }
 
-            if (session?.User == null)
-                return Result.Fail("Email confirmation may be required. Check your email, then sign in.");
+        private async Task<Result<Session>> AuthenticateAsync(string email, string masterPassword)
+        {
+            try
+            {
+                var session = await _supabase.Auth.SignIn(email, masterPassword);
 
-            var authUserId = session.User.Id;
+                if (session?.User == null)
+                {
+                    return Result<Session>.Fail("Invalid email or password.");
+                }
+
+                return Result<Session>.Ok(session);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Login failed for {Email}", email);
+                return Result<Session>.Fail("Invalid email or password.");
+            }
+        }
+
+        private (byte[] salt, byte[] key, string verificationToken) CreateCryptographicMaterials(string masterPassword)
+        {
             var salt = _cryptoService.GenerateSalt();
             var key = _cryptoService.DeriveKey(masterPassword, salt);
 
-            var verificationToken = new byte[32];
-            RandomNumberGenerator.Fill(verificationToken);
-            var tokenString = Convert.ToBase64String(verificationToken);
+            var verificationTokenBytes = new byte[32];
+            RandomNumberGenerator.Fill(verificationTokenBytes);
+            var verificationToken = Convert.ToBase64String(verificationTokenBytes);
 
-            var encryptedTokenResult = _cryptoService.Encrypt(tokenString, key);
+            return (salt, key, verificationToken);
+        }
+
+        private async Task<Result> CreateUserProfileAsync(
+            Guid userId,
+            byte[] salt,
+            string verificationToken,
+            byte[] key,
+            string accessToken)
+        {
+            var encryptedTokenResult = _cryptoService.Encrypt(verificationToken, key);
             if (!encryptedTokenResult.Success)
-                return Result.Fail(encryptedTokenResult.Message ?? "Failed to create account. Please try again.");
+            {
+                return Result.Fail("Failed to create account. Please try again.");
+            }
 
             var profile = new UserProfileEntity
             {
-                Id = Guid.Parse(authUserId),
+                Id = userId,
                 Salt = Convert.ToBase64String(salt),
                 EncryptedVerificationToken = encryptedTokenResult.Value.ToBase64String(),
                 CreatedAt = DateTime.UtcNow
             };
 
-            string? supabaseUrl = _configuration["Supabase:Url"]?.TrimEnd('/');
-            string? anonKey = _configuration["Supabase:AnonKey"];
-            if (string.IsNullOrEmpty(supabaseUrl) || string.IsNullOrEmpty(anonKey))
-                return Result.Fail("Supabase configuration is missing.");
-
-            try
-            {
-                await InsertUserProfileWithTokenAsync(supabaseUrl, anonKey, session.AccessToken ?? "", profile);
-            }
-            catch (Exception)
-            {
-                return Result.Fail("Could not create user profile.");
-            }
-
-            _sessionService.SetUser(Guid.Parse(authUserId), session.User.Email ?? email, session.AccessToken);
-            _sessionService.SetDerivedKey(key);
-
-            return Result.Ok();
+            return await _userProfileService.CreateProfileAsync(profile, accessToken);
         }
 
-        public async Task<Result> LoginAsync(string email, string masterPassword)
+        private async Task<Result<byte[]>> VerifyMasterPasswordAsync(Guid userId, string masterPassword)
         {
-            Session? session;
-            try
+            var profileResult = await _userProfileService.GetProfileAsync(userId);
+            if (!profileResult.Success)
             {
-                session = await _supabase.Auth.SignIn(email, masterPassword);
-            }
-            catch (Exception)
-            {
-                return Result.Fail("Invalid email or password.");
+                return Result<byte[]>.Fail("User profile not found.");
             }
 
-            if (session?.User == null)
-                return Result.Fail("Invalid email or password.");
-
-            var authUserId = Guid.Parse(session.User.Id);
-
-            _sessionService.SetUser(authUserId, session.User.Email ?? email, session.AccessToken);
-
-            var profile = await _vaultRepository.GetUserProfileAsync(authUserId);
-            if (profile == null)
-            {
-                _sessionService.ClearSession();
-                return Result.Fail("User profile not found.");
-            }
-
+            var profile = profileResult.Value;
             var salt = Convert.FromBase64String(profile.Salt);
             var key = _cryptoService.DeriveKey(masterPassword, salt);
 
@@ -149,65 +240,21 @@ namespace PasswordManager.Core.Services.Implementations
                 var encryptionToken = EncryptedBlob.FromBase64String(profile.EncryptedVerificationToken);
                 if (!encryptionToken.Success)
                 {
-                    _sessionService.ClearSession();
-                    return Result.Fail("Invalid email or password.");
+                    return Result<byte[]>.Fail("Invalid email or password.");
                 }
 
                 var decryptedToken = _cryptoService.Decrypt(encryptionToken.Value, key);
                 if (!decryptedToken.Success)
                 {
-                    _sessionService.ClearSession();
-                    return Result.Fail("Invalid email or password.");
+                    return Result<byte[]>.Fail("Invalid email or password.");
                 }
+
+                return Result<byte[]>.Ok(key);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                _sessionService.ClearSession();
-                return Result.Fail("Invalid email or password.");
-            }
-
-            _sessionService.SetDerivedKey(key);
-
-            return Result.Ok();
-        }
-
-        public void Lock()
-        {
-            _ = _supabase.Auth.SignOut();
-            _sessionService.ClearSession();
-        }
-
-        public bool IsLocked()
-        {
-            return !_sessionService.IsActive();
-        }
-
-        public Task<Result> ChangeMasterPasswordAsync(string currentPassword, string newPassword)
-        {
-            return Task.FromResult(Result.Fail("Not implemented."));
-        }
-
-        private static async Task InsertUserProfileWithTokenAsync(string supabaseUrl, string anonKey, string accessToken, UserProfileEntity profile)
-        {
-            var payload = new
-            {
-                profile.Id,
-                profile.Salt,
-                profile.EncryptedVerificationToken,
-                profile.CreatedAt
-            };
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/rest/v1/UserProfiles");
-            request.Headers.Add("apikey", anonKey);
-            request.Headers.Add("Authorization", "Bearer " + accessToken);
-            request.Headers.Add("Prefer", "return=minimal");
-            request.Content = new StringContent(JsonSerializer.Serialize(payload, JsonOptions), System.Text.Encoding.UTF8, "application/json");
-
-            using var client = new HttpClient();
-            var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                var body = await response.Content.ReadAsStringAsync();
-                throw new InvalidOperationException($"UserProfiles insert failed: {response.StatusCode} {body}");
+                _logger.LogWarning(ex, "Password verification failed for user {UserId}", userId);
+                return Result<byte[]>.Fail("Invalid email or password.");
             }
         }
     }

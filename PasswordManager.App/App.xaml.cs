@@ -3,10 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using PasswordManager.App.Services;
 using PasswordManager.App.ViewModels;
 using PasswordManager.App.Views;
+using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Services.Implementations;
 using PasswordManager.Core.Services.Interfaces;
-using Supabase;
-using System;
 using System.IO;
 using System.Windows;
 
@@ -38,6 +37,7 @@ namespace PasswordManager.App
 
             // STEP 2: Create service collection and register everything
             var services = new ServiceCollection();
+            services.AddHttpClient();
 
             services.AddSingleton<IConfiguration>(configuration);
 
@@ -55,6 +55,9 @@ namespace PasswordManager.App
 
             services.AddSingleton<IClipboardService, WpfClipboardService>();
             services.AddSingleton<IAuthCoordinator, AuthCoordinator>();
+            services.AddSingleton<IUserProfileService, UserProfileService>();
+            services.AddSingleton<ISupabaseExceptionMapper, SupabaseExceptionMapper>();
+            services.AddLogging();
 
             // ViewModels and Views
             services.AddTransient<LoginViewModel>();

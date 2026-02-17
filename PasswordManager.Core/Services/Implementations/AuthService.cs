@@ -26,7 +26,6 @@ namespace PasswordManager.Core.Services.Implementations
         public Guid? CurrentUserId => _sessionService.CurrentUserId;
         public string? CurrentUserEmail => _sessionService.CurrentUserEmail;
 
-        private readonly IPostgrestAuthTokenOverride? _tokenOverride;
         private readonly IUserProfileInserterWithToken? _profileInserterWithToken;
 
         public AuthService(
@@ -36,7 +35,6 @@ namespace PasswordManager.Core.Services.Implementations
             ISessionService sessionService,
             ISupabaseExceptionMapper exceptionMapper,
             ILogger<AuthService> logger,
-            IPostgrestAuthTokenOverride? tokenOverride = null,
             IUserProfileInserterWithToken? profileInserterWithToken = null)
         {
             _supabase = supabase;
@@ -45,7 +43,6 @@ namespace PasswordManager.Core.Services.Implementations
             _sessionService = sessionService;
             _exceptionMapper = exceptionMapper;
             _logger = logger;
-            _tokenOverride = tokenOverride;
             _profileInserterWithToken = profileInserterWithToken;
 
             _supabase.Auth.AddStateChangedListener(OnAuthStateChanged);
@@ -114,9 +111,6 @@ namespace PasswordManager.Core.Services.Implementations
             }
 
             var authUserId = Guid.Parse(session.User.Id);
-
-            await _supabase.Auth.SetSession(session.AccessToken!, session.RefreshToken!);
-            _tokenOverride?.SetTokenForNextRequest(session.AccessToken);
 
             var (salt, key, verificationToken) = CreateCryptographicMaterials(masterPassword);
 

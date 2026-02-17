@@ -6,7 +6,6 @@ using PasswordManager.App.Views;
 using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Services.Implementations;
 using PasswordManager.Core.Services.Interfaces;
-using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 
@@ -46,19 +45,7 @@ namespace PasswordManager.App
             var supabase = new Supabase.Client(supabaseUrl, supabaseAnonKey, options);
             await supabase.InitializeAsync();
 
-            var tokenOverride = new PostgrestAuthTokenOverride();
-            var originalGetHeaders = supabase.Postgrest.GetHeaders;
-            supabase.Postgrest.GetHeaders = () =>
-            {
-                var headers = originalGetHeaders?.Invoke() ?? new Dictionary<string, string>();
-                var accessToken = tokenOverride.GetAndClearToken() ?? supabase.Auth.CurrentSession?.AccessToken;
-                if (accessToken != null)
-                    headers["Authorization"] = $"Bearer {accessToken}";
-                return headers;
-            };
-
             services.AddSingleton(supabase);
-            services.AddSingleton<IPostgrestAuthTokenOverride>(tokenOverride);
             services.AddSingleton<IUserProfileInserterWithToken, UserProfileInserterWithToken>();
 
             // Core services

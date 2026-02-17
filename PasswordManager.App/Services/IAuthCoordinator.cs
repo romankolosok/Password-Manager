@@ -23,7 +23,7 @@ namespace PasswordManager.App.Services
         void RequestRegister(Window loginWindow);
 
         /// <summary>
-        /// Called when registration succeeds (user is logged in). Closes register window and shows main window.
+        /// Called when registration succeeds. Closes register window and shows login so the user can sign in.
         /// </summary>
         void OnRegisterSuccess(Window registerWindow);
     }

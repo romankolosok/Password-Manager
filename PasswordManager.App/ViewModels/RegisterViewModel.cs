@@ -104,7 +104,7 @@ namespace PasswordManager.App.ViewModels
         }
 
         /// <summary>
-        /// Raised when registration succeeds. View/coordinator can subscribe to close and show main.
+        /// Raised when registration succeeds. Coordinator closes register and shows login.
         /// </summary>
         public event EventHandler? RegisterSuccessful;
 

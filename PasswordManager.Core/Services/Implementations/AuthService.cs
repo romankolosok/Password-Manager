@@ -26,13 +26,18 @@ namespace PasswordManager.Core.Services.Implementations
         public Guid? CurrentUserId => _sessionService.CurrentUserId;
         public string? CurrentUserEmail => _sessionService.CurrentUserEmail;
 
+        private readonly IPostgrestAuthTokenOverride? _tokenOverride;
+        private readonly IUserProfileInserterWithToken? _profileInserterWithToken;
+
         public AuthService(
             Supabase.Client supabase,
             ICryptoService cryptoService,
             IUserProfileService userProfileService,
             ISessionService sessionService,
             ISupabaseExceptionMapper exceptionMapper,
-            ILogger<AuthService> logger)
+            ILogger<AuthService> logger,
+            IPostgrestAuthTokenOverride? tokenOverride = null,
+            IUserProfileInserterWithToken? profileInserterWithToken = null)
         {
             _supabase = supabase;
             _cryptoService = cryptoService;
@@ -40,8 +45,9 @@ namespace PasswordManager.Core.Services.Implementations
             _sessionService = sessionService;
             _exceptionMapper = exceptionMapper;
             _logger = logger;
+            _tokenOverride = tokenOverride;
+            _profileInserterWithToken = profileInserterWithToken;
 
-            // Listen to auth state changes
             _supabase.Auth.AddStateChangedListener(OnAuthStateChanged);
         }
 
@@ -109,23 +115,32 @@ namespace PasswordManager.Core.Services.Implementations
 
             var authUserId = Guid.Parse(session.User.Id);
 
-            // Create cryptographic materials
+            await _supabase.Auth.SetSession(session.AccessToken!, session.RefreshToken!);
+            _tokenOverride?.SetTokenForNextRequest(session.AccessToken);
+
             var (salt, key, verificationToken) = CreateCryptographicMaterials(masterPassword);
 
-            var profileResult = await CreateUserProfileAsync(authUserId, salt, verificationToken, key);
+            var profileBuildResult = BuildUserProfileEntity(authUserId, salt, verificationToken, key);
+            if (!profileBuildResult.Success)
+            {
+                await _supabase.Auth.SignOut();
+                return profileBuildResult;
+            }
+
+            var profile = profileBuildResult.Value;
+            var profileResult = _profileInserterWithToken != null
+                ? await _profileInserterWithToken.InsertAsync(profile, session.AccessToken!)
+                : await _userProfileService.CreateProfileAsync(profile);
+
             if (!profileResult.Success)
             {
                 _logger.LogError("Failed to create profile for user {UserId}", authUserId);
-                // Clean up: sign out the user since profile creation failed
                 await _supabase.Auth.SignOut();
                 return profileResult;
             }
 
-            // Set session
-            _sessionService.SetUser(authUserId, session.User.Email ?? email, session.AccessToken);
-            _sessionService.SetDerivedKey(key);
-
-            _logger.LogInformation("User {UserId} registered successfully", authUserId);
+            await _supabase.Auth.SignOut();
+            _logger.LogInformation("User {UserId} registered successfully; redirecting to login", authUserId);
             return Result.Ok();
         }
 
@@ -273,7 +288,7 @@ namespace PasswordManager.Core.Services.Implementations
             return (salt, key, verificationToken);
         }
 
-        private async Task<Result> CreateUserProfileAsync(
+        private Result<UserProfileEntity> BuildUserProfileEntity(
             Guid userId,
             byte[] salt,
             string verificationToken,
@@ -281,9 +296,7 @@ namespace PasswordManager.Core.Services.Implementations
         {
             var encryptedTokenResult = _cryptoService.Encrypt(verificationToken, key);
             if (!encryptedTokenResult.Success)
-            {
-                return Result.Fail("Failed to create account. Please try again.");
-            }
+                return Result<UserProfileEntity>.Fail("Failed to create account. Please try again.");
 
             var profile = new UserProfileEntity
             {
@@ -292,8 +305,7 @@ namespace PasswordManager.Core.Services.Implementations
                 EncryptedVerificationToken = encryptedTokenResult.Value.ToBase64String(),
                 CreatedAt = DateTime.UtcNow
             };
-
-            return await _userProfileService.CreateProfileAsync(profile);
+            return Result<UserProfileEntity>.Ok(profile);
         }
 
         private async Task<Result<byte[]>> VerifyMasterPasswordAsync(Guid userId, string masterPassword)

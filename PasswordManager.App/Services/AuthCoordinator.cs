@@ -54,12 +54,9 @@ namespace PasswordManager.App.Services
 
         public void OnRegisterSuccess(Window registerWindow)
         {
-            var main = MainWindow;
-            main.Show();
-            main.Activate();
             registerWindow.Close();
-            _loginWindow?.Close();
-            _loginWindow = null;
+            _loginWindow?.Show();
+            _loginWindow?.Activate();
         }
     }
 }

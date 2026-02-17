@@ -16,7 +16,7 @@ namespace PasswordManager.Core.Services.Interfaces
 
         public Task<Result> LoginAsync(string email, string masterPassword);
 
-        public void Lock();
+        public Task LockAsync();
 
         public bool IsLocked();
 

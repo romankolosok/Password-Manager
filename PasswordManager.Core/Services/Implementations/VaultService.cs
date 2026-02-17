@@ -1,43 +1,30 @@
+using Microsoft.Extensions.Logging;
 using PasswordManager.Core.Entities;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace PasswordManager.Core.Services.Implementations
 {
-    /// <summary>
-    /// Payload stored in EncryptedData (JSON). Id, CreatedAt, UpdatedAt are on VaultEntryEntity only.
-    /// </summary>
-    internal class VaultEntryPayload
-    {
-        public string WebsiteName { get; set; } = "";
-        public string Username { get; set; } = "";
-        public string Password { get; set; } = "";
-        public string Url { get; set; } = "";
-        public string Notes { get; set; } = "";
-        public string Category { get; set; } = "";
-        public bool IsFavorite { get; set; }
-    }
-
     public class VaultService : IVaultService
     {
         private readonly ICryptoService _cryptoService;
         private readonly ISessionService _sessionService;
         private readonly IVaultRepository _vaultRepository;
-
-        private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
+        private readonly ILogger<VaultService> _logger;
 
         public VaultService(ICryptoService crypto,
             ISessionService session,
-            IVaultRepository repository)
+            IVaultRepository repository,
+            ILogger<VaultService> logger)
         {
             _cryptoService = crypto;
             _sessionService = session;
             _vaultRepository = repository;
+            _logger = logger;
         }
 
         public async Task<Result<List<VaultEntry>>> GetAllEntriesAsync()
@@ -45,11 +32,8 @@ namespace PasswordManager.Core.Services.Implementations
             if (!_sessionService.IsActive())
                 return Result<List<VaultEntry>>.Fail("Vault is locked");
 
-            Guid? userId = _sessionService.CurrentUserId;
-            if (userId == null)
-                return Result<List<VaultEntry>>.Fail("No user logged in");
-
-            List<VaultEntryEntity> entities = await _vaultRepository.GetAllEntriesAsync(userId.Value);
+            // RLS handles user filtering automatically via auth.uid()
+            List<VaultEntryEntity> entities = await _vaultRepository.GetAllEntriesAsync(_sessionService.CurrentUserId!.Value);
             byte[] key = _sessionService.GetDerivedKey();
             var decryptedEntries = new List<VaultEntry>();
 
@@ -58,7 +42,7 @@ namespace PasswordManager.Core.Services.Implementations
                 Result<VaultEntry>? entryResult = TryDecryptEntry(entity, key);
                 if (entryResult != null && entryResult.Success)
                     decryptedEntries.Add(entryResult.Value!);
-                // On failure we skip this entry (log could be added here)
+                // On failure we skip this entry
             }
 
             return Result<List<VaultEntry>>.Ok(decryptedEntries);
@@ -72,20 +56,24 @@ namespace PasswordManager.Core.Services.Implementations
             if (!Guid.TryParse(id, out Guid entryId))
                 return Result<VaultEntry>.Fail("Invalid entry id");
 
-            Guid? userId = _sessionService.CurrentUserId;
-            if (userId == null)
-                return Result<VaultEntry>.Fail("No user logged in");
+            try
+            {
+                VaultEntryEntity? entity = await _vaultRepository.GetEntryAsync(_sessionService.CurrentUserId!.Value, entryId);
+                if (entity == null)
+                    return Result<VaultEntry>.Fail("Entry not found");
 
-            VaultEntryEntity? entity = await _vaultRepository.GetEntryAsync(userId.Value, entryId);
-            if (entity == null)
-                return Result<VaultEntry>.Fail("Entry not found");
+                byte[] key = _sessionService.GetDerivedKey();
+                Result<VaultEntry>? entryResult = TryDecryptEntry(entity, key);
+                if (entryResult != null && entryResult.Success)
+                    return Result<VaultEntry>.Ok(entryResult.Value!);
 
-            byte[] key = _sessionService.GetDerivedKey();
-            Result<VaultEntry>? entryResult = TryDecryptEntry(entity, key);
-            if (entryResult != null && entryResult.Success)
-                return Result<VaultEntry>.Ok(entryResult.Value!);
-
-            return Result<VaultEntry>.Fail("Failed to decrypt entry");
+                return Result<VaultEntry>.Fail("Failed to decrypt entry");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving vault entry {EntryId}", entryId);
+                return Result<VaultEntry>.Fail("Failed to retrieve entry");
+            }
         }
 
         public async Task<Result> AddEntryAsync(VaultEntry entry)
@@ -102,7 +90,10 @@ namespace PasswordManager.Core.Services.Implementations
             DateTime effectiveCreated = isNew ? DateTime.UtcNow : entry.CreatedAt;
             DateTime effectiveUpdated = DateTime.UtcNow;
 
-            string json = SerializePayload(entry);
+            // Convert VaultEntry to payload and serialize using extension methods
+            VaultEntryPayload payload = entry.ToPayload();
+            string json = payload.ToJson();
+
             Result<EncryptedBlob> encryptResult = _cryptoService.Encrypt(json, _sessionService.GetDerivedKey());
             if (!encryptResult.Success)
                 return Result.Fail(encryptResult.Message ?? "Failed to encrypt entry");
@@ -135,13 +126,10 @@ namespace PasswordManager.Core.Services.Implementations
             if (!Guid.TryParse(entryId, out Guid id))
                 return Result.Fail("Invalid entry id");
 
-            Guid? userId = _sessionService.CurrentUserId;
-            if (userId == null)
-                return Result.Fail("No user logged in");
-
+            // RLS handles user filtering automatically - user can only delete their own entries
             try
             {
-                await _vaultRepository.DeleteEntryAsync(userId.Value, id);
+                await _vaultRepository.DeleteEntryAsync(_sessionService.CurrentUserId!.Value, id);
                 return Result.Ok();
             }
             catch (Exception)
@@ -167,7 +155,7 @@ namespace PasswordManager.Core.Services.Implementations
         }
 
         /// <summary>
-        /// Decrypts entity and maps to VaultEntry. Returns null on failure (caller can skip or log).
+        /// Decrypts entity and maps to VaultEntry. Returns null on failure.
         /// </summary>
         private Result<VaultEntry>? TryDecryptEntry(VaultEntryEntity entity, byte[] key)
         {
@@ -179,51 +167,13 @@ namespace PasswordManager.Core.Services.Implementations
             if (!decryptResult.Success)
                 return null;
 
-            VaultEntryPayload? payload = DeserializePayload(decryptResult.Value);
+            VaultEntryPayload? payload = VaultEntryPayload.FromJson(decryptResult.Value);
             if (payload == null)
                 return null;
 
-            var entry = new VaultEntry
-            {
-                Id = entity.Id,
-                WebsiteName = payload.WebsiteName ?? "",
-                Username = payload.Username ?? "",
-                Password = payload.Password ?? "",
-                Url = payload.Url ?? "",
-                Notes = payload.Notes ?? "",
-                Category = payload.Category ?? "",
-                IsFavorite = payload.IsFavorite,
-                CreatedAt = entity.CreatedAt,
-                UpdatedAt = entity.UpdatedAt
-            };
+            // Use extension method with entity directly
+            VaultEntry entry = payload.ToVaultEntry(entity);
             return Result<VaultEntry>.Ok(entry);
-        }
-
-        private static string SerializePayload(VaultEntry entry)
-        {
-            var payload = new VaultEntryPayload
-            {
-                WebsiteName = entry.WebsiteName ?? "",
-                Username = entry.Username ?? "",
-                Password = entry.Password ?? "",
-                Url = entry.Url ?? "",
-                Notes = entry.Notes ?? "",
-                Category = entry.Category ?? "",
-                IsFavorite = entry.IsFavorite
-            };
-            return JsonSerializer.Serialize(payload, JsonOptions);
-        }
-
-        private static VaultEntryPayload? DeserializePayload(string json)
-        {
-            try
-            {
-                return JsonSerializer.Deserialize<VaultEntryPayload>(json, JsonOptions);
-            }
-            catch
-            {
-                return null;
-            }
         }
     }
 }

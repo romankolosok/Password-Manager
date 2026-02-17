@@ -40,6 +40,39 @@ namespace PasswordManager.Core.Services.Implementations
             _sessionService = sessionService;
             _exceptionMapper = exceptionMapper;
             _logger = logger;
+
+            // Listen to auth state changes
+            _supabase.Auth.AddStateChangedListener(OnAuthStateChanged);
+        }
+
+        private void OnAuthStateChanged(object? sender, Supabase.Gotrue.Constants.AuthState state)
+        {
+            switch (state)
+            {
+                case Supabase.Gotrue.Constants.AuthState.SignedOut:
+                    _logger.LogInformation("Auth state changed: SignedOut");
+                    _sessionService.ClearSession();
+                    break;
+                case Supabase.Gotrue.Constants.AuthState.TokenRefreshed:
+                    _logger.LogInformation("Auth state changed: TokenRefreshed");
+                    // Update access token in session
+                    var session = _supabase.Auth.CurrentSession;
+                    if (session?.AccessToken != null && _sessionService.CurrentUserId != null)
+                    {
+                        _sessionService.SetUser(
+                            _sessionService.CurrentUserId.Value,
+                            _sessionService.CurrentUserEmail ?? session.User?.Email ?? "",
+                            session.AccessToken
+                        );
+                    }
+                    break;
+                case Supabase.Gotrue.Constants.AuthState.SignedIn:
+                    _logger.LogInformation("Auth state changed: SignedIn");
+                    break;
+                case Supabase.Gotrue.Constants.AuthState.UserUpdated:
+                    _logger.LogInformation("Auth state changed: UserUpdated");
+                    break;
+            }
         }
 
         public async Task<Result> RegisterAsync(string email, string masterPassword)
@@ -59,16 +92,32 @@ namespace PasswordManager.Core.Services.Implementations
             }
 
             var session = sessionResult.Value;
-            var authUserId = Guid.Parse(session.User!.Id);
+
+            // Handle case where email confirmation is required
+            if (session == null || session.User == null)
+            {
+                _logger.LogInformation("User registered but email confirmation required for {Email}", email);
+                return Result.Fail("Registration successful! Please check your email to confirm your account before signing in.");
+            }
+
+            // Parse user ID with null check
+            if (string.IsNullOrEmpty(session.User.Id))
+            {
+                _logger.LogError("User ID is null or empty after signup for {Email}", email);
+                return Result.Fail("Registration failed. Invalid user ID.");
+            }
+
+            var authUserId = Guid.Parse(session.User.Id);
 
             // Create cryptographic materials
             var (salt, key, verificationToken) = CreateCryptographicMaterials(masterPassword);
 
-            // Create user profile
-            var profileResult = await CreateUserProfileAsync(authUserId, salt, verificationToken, key, session.AccessToken!);
+            var profileResult = await CreateUserProfileAsync(authUserId, salt, verificationToken, key);
             if (!profileResult.Success)
             {
                 _logger.LogError("Failed to create profile for user {UserId}", authUserId);
+                // Clean up: sign out the user since profile creation failed
+                await _supabase.Auth.SignOut();
                 return profileResult;
             }
 
@@ -90,16 +139,31 @@ namespace PasswordManager.Core.Services.Implementations
             }
 
             var session = sessionResult.Value;
-            var authUserId = Guid.Parse(session.User!.Id);
+
+            // Validate session
+            if (session?.User == null)
+            {
+                return Result.Fail("Invalid session. Please try again.");
+            }
+
+            // Parse user ID with null check
+            if (string.IsNullOrEmpty(session.User.Id))
+            {
+                _logger.LogError("User ID is null or empty after login for {Email}", email);
+                return Result.Fail("Login failed. Invalid user ID.");
+            }
+
+            var authUserId = Guid.Parse(session.User.Id);
 
             // Set temporary session for profile retrieval
             _sessionService.SetUser(authUserId, session.User.Email ?? email, session.AccessToken);
 
-            // Retriev      
+            // Verify master password and derive key
             var verificationResult = await VerifyMasterPasswordAsync(authUserId, masterPassword);
             if (!verificationResult.Success)
             {
                 _sessionService.ClearSession();
+                await _supabase.Auth.SignOut();
                 return verificationResult;
             }
 
@@ -110,16 +174,30 @@ namespace PasswordManager.Core.Services.Implementations
             return Result.Ok();
         }
 
-        public void Lock()
+        public async Task LockAsync()
         {
-            _ = _supabase.Auth.SignOut();
-            _sessionService.ClearSession();
-            _logger.LogInformation("Session locked");
+            try
+            {
+                await _supabase.Auth.SignOut();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error during sign out");
+            }
+            finally
+            {
+                _sessionService.ClearSession();
+                _logger.LogInformation("Session locked");
+            }
         }
 
         public bool IsLocked()
         {
-            return !_sessionService.IsActive();
+            // Check both Supabase session and internal session
+            var hasSupabaseSession = _supabase.Auth.CurrentSession != null;
+            var hasInternalSession = _sessionService.IsActive();
+
+            return !hasSupabaseSession || !hasInternalSession;
         }
 
         public Task<Result> ChangeMasterPasswordAsync(string currentPassword, string newPassword)
@@ -147,23 +225,19 @@ namespace PasswordManager.Core.Services.Implementations
             return Result.Ok();
         }
 
-        private async Task<Result<Session>> CreateAuthSessionAsync(string email, string masterPassword)
+        private async Task<Result<Session?>> CreateAuthSessionAsync(string email, string masterPassword)
         {
             try
             {
                 var session = await _supabase.Auth.SignUp(email, masterPassword);
 
-                if (session?.User == null)
-                {
-                    return Result<Session>.Fail("Email confirmation may be required. Check your email, then sign in.");
-                }
-
-                return Result<Session>.Ok(session);
+                // Session can be null if email confirmation is required
+                return Result<Session?>.Ok(session);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Registration failed for {Email}", email);
-                return Result<Session>.Fail(_exceptionMapper.MapAuthException(ex).Message);
+                return Result<Session?>.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }
 
@@ -203,8 +277,7 @@ namespace PasswordManager.Core.Services.Implementations
             Guid userId,
             byte[] salt,
             string verificationToken,
-            byte[] key,
-            string accessToken)
+            byte[] key)
         {
             var encryptedTokenResult = _cryptoService.Encrypt(verificationToken, key);
             if (!encryptedTokenResult.Success)
@@ -220,7 +293,7 @@ namespace PasswordManager.Core.Services.Implementations
                 CreatedAt = DateTime.UtcNow
             };
 
-            return await _userProfileService.CreateProfileAsync(profile, accessToken);
+            return await _userProfileService.CreateProfileAsync(profile);
         }
 
         private async Task<Result<byte[]>> VerifyMasterPasswordAsync(Guid userId, string masterPassword)

@@ -1,13 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
+using System.Collections.ObjectModel;
+using System.Windows;
 
 namespace PasswordManager.App.ViewModels
 {
@@ -125,9 +121,9 @@ namespace PasswordManager.App.ViewModels
         }
 
         [RelayCommand]
-        private void Lock()
+        private async Task Lock()
         {
-            _authService.Lock();
+            await _authService.LockAsync();
         }
 
         [RelayCommand(CanExecute = nameof(CanExecuteSearch))]

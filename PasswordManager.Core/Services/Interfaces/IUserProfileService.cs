@@ -7,7 +7,7 @@ namespace PasswordManager.Core.Services.Interfaces
 {
     public interface IUserProfileService
     {
-        Task<Result> CreateProfileAsync(UserProfileEntity profile, string accessToken);
+        Task<Result> CreateProfileAsync(UserProfileEntity profile);
         Task<Result<UserProfileEntity>> GetProfileAsync(Guid userId);
     }
 }

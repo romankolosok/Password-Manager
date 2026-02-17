@@ -11,10 +11,6 @@ using System.Windows;
 
 namespace PasswordManager.App
 {
-    /// <summary>
-    /// Composition root — wires all interfaces to their implementations.
-    /// Uses Supabase Auth + REST API (no direct database connection).
-    /// </summary>
     public partial class App : Application
     {
         public IServiceProvider? ServiceProvider { get; private set; }
@@ -35,14 +31,18 @@ namespace PasswordManager.App
             if (string.IsNullOrEmpty(supabaseUrl) || string.IsNullOrEmpty(supabaseAnonKey))
                 throw new InvalidOperationException("Supabase:Url and Supabase:AnonKey must be set in appsettings.json.");
 
-            // STEP 2: Create service collection and register everything
+            // Create service collection and register everything
             var services = new ServiceCollection();
-            services.AddHttpClient();
 
             services.AddSingleton<IConfiguration>(configuration);
 
-            // Supabase client (replaces direct DB connection; Auth + REST use auth.uid() RLS)
-            var supabase = new Supabase.Client(supabaseUrl, supabaseAnonKey);
+            // Supabase client
+            var options = new Supabase.SupabaseOptions
+            {
+                AutoRefreshToken = true,
+                AutoConnectRealtime = false // Only enable if using realtime features
+            };
+            var supabase = new Supabase.Client(supabaseUrl, supabaseAnonKey, options);
             await supabase.InitializeAsync();
             services.AddSingleton(supabase);
 
@@ -70,10 +70,10 @@ namespace PasswordManager.App
             services.AddTransient<EntryDetailView>();
             services.AddSingleton<MainWindow>();
 
-            // STEP 3: Build the service provider
+            //Build the service provider
             ServiceProvider = services.BuildServiceProvider();
 
-            // STEP 4: Show the login window via coordinator
+            //Show the login window via coordinator
             var coordinator = ServiceProvider.GetRequiredService<IAuthCoordinator>();
             coordinator.ShowLogin();
         }

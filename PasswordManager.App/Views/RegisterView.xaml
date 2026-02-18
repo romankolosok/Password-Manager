@@ -5,102 +5,242 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PasswordManager.App.Views"
         mc:Ignorable="d"
-        Title="Register" Height="520" Width="400">
+        Title="VaultKey - Create Account" Height="680" Width="440"
+        Background="White" WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
-        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#0078D7"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#B0C4DE"/>
-                                <Setter Property="Foreground" Value="#2F4F6F"/>
-                                <Setter TargetName="border" Property="Opacity" Value="1"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </Window.Resources>
     <Grid>
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="250">
+        <StackPanel Width="320" Margin="40,28" HorizontalAlignment="Center" VerticalAlignment="Center">
 
-            <TextBlock Text="Create account" HorizontalAlignment="Center" FontSize="24" Margin="0,0,0,40"/>
+            <!-- Logo -->
+            <Border Width="56" Height="56" HorizontalAlignment="Center" CornerRadius="10" Margin="0,0,0,16">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#1E3A5F" Offset="0"/>
+                        <GradientStop Color="#0D9488" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Viewbox Width="28" Height="28" Margin="14">
+                    <Path Data="M12,2 C9.24,2 7,4.24 7,7 L7,9 L5,9 C3.9,9 3,9.9 3,11 L3,20 C3,21.1 3.9,22 5,22 L19,22 C20.1,22 21,21.1 21,20 L21,11 C21,9.9 20.1,9 19,9 L17,9 L17,7 C17,4.24 14.76,2 12,2 Z M12,4 C13.66,4 15,5.34 15,7 L15,9 L9,9 L9,7 C9,5.34 10.34,4 12,4 Z" Fill="White" Stroke="White" StrokeThickness="0.5"/>
+                </Viewbox>
+            </Border>
 
-            <Grid Margin="0,0,0,15">
-                <TextBox x:Name="EmailTextBox" Height="30" Padding="5,4,5,0" FontSize="14" Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBlock Text="Email" IsHitTestVisible="False" Margin="8,6,0,0" FontSize="14" Foreground="DarkGray">
-                    <TextBlock.Style>
-                        <Style TargetType="{x:Type TextBlock}">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Text, ElementName=EmailTextBox}" Value="">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </Grid>
+            <TextBlock Text="Create Account" HorizontalAlignment="Center" FontSize="26" FontWeight="Bold" Foreground="#111827" Margin="0,0,0,4"/>
+            <TextBlock Text="Secure your passwords starting today" HorizontalAlignment="Center" FontSize="13" Foreground="#6B7280" Margin="0,0,0,28"/>
 
-            <TextBlock Text="{Binding DisplayError}" Foreground="#C42B1C" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"
+            <!-- Email -->
+            <TextBlock Text="Email" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Margin="0,0,0,16">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=EmailTextBox}" Value="True">
+                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Viewbox Grid.Column="0" Width="20" Height="20" Margin="0,0,10,0" VerticalAlignment="Center">
+                        <Path Fill="Transparent" Stroke="#9CA3AF" StrokeThickness="1.5" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                            <Path.Data>
+                                <GeometryGroup>
+                                    <PathGeometry Figures="M 4,9 L 10.2,13.65 C 11.27,14.45 12.73,14.45 13.8,13.65 L 20,9"/>
+                                    <PathGeometry Figures="M 3,9.18 C 3,8.45 3.39,7.78 4.03,7.43 L 11.03,3.54 C 11.63,3.2 12.37,3.2 12.97,3.54 L 19.97,7.43 C 20.61,7.78 21,8.45 21,9.18 V 17 C 21,18.1 20.1,19 19,19 H 5 C 3.9,19 3,18.1 3,17 V 9.18 Z"/>
+                                </GeometryGroup>
+                            </Path.Data>
+                        </Path>
+                    </Viewbox>
+                    <Grid Grid.Column="1">
+                        <TextBox x:Name="EmailTextBox" Height="28" Padding="0,6,4,0" FontSize="14" BorderThickness="0" Background="Transparent"
+                                 VerticalContentAlignment="Center" Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="Enter your email" IsHitTestVisible="False" Margin="0,0,0,2" FontSize="14" Foreground="#9CA3AF" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding Text, ElementName=EmailTextBox}" Value=""/>
+                                                <Condition Binding="{Binding IsKeyboardFocused, ElementName=EmailTextBox}" Value="False"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- Master Password -->
+            <TextBlock Text="Master Password" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Margin="0,0,0,8">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=PasswordBox}" Value="True">
+                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=PasswordVisibleBox}" Value="True">
+                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Viewbox Grid.Column="0" Width="20" Height="20" Margin="0,0,10,0" VerticalAlignment="Center">
+                        <Path Data="M12,2 C9.24,2 7,4.24 7,7 L7,9 L5,9 C3.9,9 3,9.9 3,11 L3,20 C3,21.1 3.9,22 5,22 L19,22 C20.1,22 21,21.1 21,20 L21,11 C21,9.9 20.1,9 19,9 L17,9 L17,7 C17,4.24 14.76,2 12,2 Z M12,4 C13.66,4 15,5.34 15,7 L15,9 L9,9 L9,7 C9,5.34 10.34,4 12,4 Z" Fill="#9CA3AF" Stroke="#9CA3AF" StrokeThickness="0.5"/>
+                    </Viewbox>
+                    <Grid Grid.Column="1">
+                        <PasswordBox x:Name="PasswordBox" Height="28" Padding="0,6,4,0" FontSize="14"
+                                     BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center"
+                                     PasswordChanged="PasswordBox_PasswordChanged"/>
+                        <TextBox x:Name="PasswordVisibleBox" Height="28" Padding="0,6,4,0" FontSize="14"
+                                 BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center"
+                                 Visibility="Collapsed" TextChanged="PasswordVisibleBox_TextChanged" LostFocus="PasswordVisibleBox_LostFocus"/>
+                        <TextBlock Text="Create a strong password (min 12 characters)" IsHitTestVisible="False" Margin="0,0,0,2" FontSize="14" Foreground="#9CA3AF" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding Text, ElementName=PasswordVisibleBox}" Value=""/>
+                                                <Condition Binding="{Binding IsKeyboardFocused, ElementName=PasswordBox}" Value="False"/>
+                                                <Condition Binding="{Binding IsKeyboardFocused, ElementName=PasswordVisibleBox}" Value="False"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                    <ToggleButton x:Name="PeekPassword" Grid.Column="2" Width="28" Height="28"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                                  Background="Transparent" BorderThickness="0"
+                                  Checked="PeekPassword_Checked" Unchecked="PeekPassword_Unchecked"
+                                  ToolTip="Show Password">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=PasswordBox}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=PasswordVisibleBox}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=PeekPassword}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ToggleButton.Style>
+                        <TextBlock Text="👁" FontSize="14"/>
+                    </ToggleButton>
+                </Grid>
+            </Border>
+
+            <!-- Confirm Master Password -->
+            <TextBlock Text="Confirm Master Password" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Margin="0,0,0,8">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=ConfirmPasswordBox}" Value="True">
+                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=ConfirmVisibleBox}" Value="True">
+                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Viewbox Grid.Column="0" Width="20" Height="20" Margin="0,0,10,0" VerticalAlignment="Center">
+                        <Path Data="M12,2 C9.24,2 7,4.24 7,7 L7,9 L5,9 C3.9,9 3,9.9 3,11 L3,20 C3,21.1 3.9,22 5,22 L19,22 C20.1,22 21,21.1 21,20 L21,11 C21,9.9 20.1,9 19,9 L17,9 L17,7 C17,4.24 14.76,2 12,2 Z M12,4 C13.66,4 15,5.34 15,7 L15,9 L9,9 L9,7 C9,5.34 10.34,4 12,4 Z" Fill="#9CA3AF" Stroke="#9CA3AF" StrokeThickness="0.5"/>
+                    </Viewbox>
+                    <Grid Grid.Column="1">
+                        <PasswordBox x:Name="ConfirmPasswordBox" Height="28" Padding="0,6,4,0" FontSize="14"
+                                     BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center"
+                                     PasswordChanged="ConfirmPasswordBox_PasswordChanged"/>
+                        <TextBox x:Name="ConfirmVisibleBox" Height="28" Padding="0,6,4,0" FontSize="14"
+                                 BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center"
+                                 Visibility="Collapsed" TextChanged="ConfirmVisibleBox_TextChanged" LostFocus="ConfirmVisibleBox_LostFocus"/>
+                        <TextBlock Text="Confirm your password" IsHitTestVisible="False" Margin="0,0,0,2" FontSize="14" Foreground="#9CA3AF" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding Text, ElementName=ConfirmVisibleBox}" Value=""/>
+                                                <Condition Binding="{Binding IsKeyboardFocused, ElementName=ConfirmPasswordBox}" Value="False"/>
+                                                <Condition Binding="{Binding IsKeyboardFocused, ElementName=ConfirmVisibleBox}" Value="False"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                    <ToggleButton x:Name="PeekConfirm" Grid.Column="2" Width="28" Height="28"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                                  Background="Transparent" BorderThickness="0"
+                                  Checked="PeekConfirm_Checked" Unchecked="PeekConfirm_Unchecked"
+                                  ToolTip="Show Password">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=ConfirmPasswordBox}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=ConfirmVisibleBox}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=PeekConfirm}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ToggleButton.Style>
+                        <TextBlock Text="👁" FontSize="14"/>
+                    </ToggleButton>
+                </Grid>
+            </Border>
+
+            <TextBlock Text="{Binding DisplayError}" Foreground="#C42B1C" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,16"
                        Visibility="{Binding DisplayErrorVisible, Converter={StaticResource BoolToVisibility}}"/>
 
-            <Grid Margin="0,0,0,15">
-                <PasswordBox x:Name="PasswordBox" Height="30" Padding="5,4,30,0" FontSize="14" PasswordChanged="PasswordBox_PasswordChanged"/>
-                <TextBox x:Name="PasswordVisibleBox" Height="30" Padding="5,4,30,0" FontSize="14" Visibility="Collapsed" TextChanged="PasswordVisibleBox_TextChanged" LostFocus="PasswordVisibleBox_LostFocus"/>
-                <TextBlock Text="Master Password" IsHitTestVisible="False" Margin="8,6,30,0" FontSize="14" Foreground="DarkGray">
-                    <TextBlock.Style>
-                        <Style TargetType="{x:Type TextBlock}">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Text, ElementName=PasswordVisibleBox}" Value="">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-                <ToggleButton x:Name="PeekPassword" Width="24" Height="24" HorizontalAlignment="Right" Margin="0,0,3,0"
-                              Background="Transparent" BorderThickness="0" Checked="PeekPassword_Checked" Unchecked="PeekPassword_Unchecked" ToolTip="Show Password">
-                    <TextBlock Text="👁" FontSize="14"/>
-                </ToggleButton>
-            </Grid>
-
-            <Grid Margin="0,0,0,30">
-                <PasswordBox x:Name="ConfirmPasswordBox" Height="30" Padding="5,4,30,0" FontSize="14" PasswordChanged="ConfirmPasswordBox_PasswordChanged"/>
-                <TextBox x:Name="ConfirmVisibleBox" Height="30" Padding="5,4,30,0" FontSize="14" Visibility="Collapsed" TextChanged="ConfirmVisibleBox_TextChanged" LostFocus="ConfirmVisibleBox_LostFocus"/>
-                <TextBlock Text="Confirm Master Password" IsHitTestVisible="False" Margin="8,6,30,0" FontSize="14" Foreground="DarkGray">
-                    <TextBlock.Style>
-                        <Style TargetType="{x:Type TextBlock}">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Text, ElementName=ConfirmVisibleBox}" Value="">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-                <ToggleButton x:Name="PeekConfirm" Width="24" Height="24" HorizontalAlignment="Right" Margin="0,0,3,0"
-                              Background="Transparent" BorderThickness="0" Checked="PeekConfirm_Checked" Unchecked="PeekConfirm_Unchecked" ToolTip="Show Password">
-                    <TextBlock Text="👁" FontSize="14"/>
-                </ToggleButton>
-            </Grid>
-
-            <Button Height="35" FontSize="16" Command="{Binding RegisterCommand}"
-                    Style="{StaticResource PrimaryButtonStyle}">
+            <!-- Create Account -->
+            <Button Height="44" Command="{Binding RegisterCommand}" Style="{StaticResource PrimaryButtonStyle}">
                 <Grid>
-                    <TextBlock Text="Register" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="Create Account" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Visible"/>
@@ -112,10 +252,9 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
-                    <Ellipse Width="28" Height="28" Stroke="#070521" StrokeThickness="5" Fill="Transparent"
-                             StrokeDashArray="0.4 0.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                             VerticalAlignment="Center" HorizontalAlignment="Center"
-                             RenderTransformOrigin="0.5,0.5">
+                    <Ellipse Width="28" Height="28" Stroke="White" StrokeThickness="4" Fill="Transparent"
+                             StrokeDashArray="0.35 0.65" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                             VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
                         <Ellipse.RenderTransform>
                             <RotateTransform Angle="0"/>
                         </Ellipse.RenderTransform>
@@ -141,8 +280,17 @@
                 </Grid>
             </Button>
 
-            <Button Content="Back to Login" Cursor="Hand" Height="35" FontSize="14" Background="Transparent" Foreground="#0078D7" BorderThickness="0" Margin="0,12,0,0" Click="BackToLogin_Click"/>
-
+            <Button Content="← Back to Login" Cursor="Hand" Height="44" FontSize="14" FontWeight="SemiBold"
+                    Background="Transparent" Foreground="#374151" BorderThickness="0"
+                    Margin="0,20,0,0" Click="BackToLogin_Click">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="16,12">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
         </StackPanel>
     </Grid>
 </Window>

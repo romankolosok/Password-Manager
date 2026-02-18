@@ -9,7 +9,7 @@ namespace PasswordManager.Core.Models
     internal static class PasswordPolicy
     {
         /// <summary>Minimum length. Matches PasswordOptionsValidator and CryptoService generator range.</summary>
-        public const int MinLength = 8;
+        public const int MinLength = 12;
 
         /// <summary>Maximum length. Matches PasswordOptionsValidator and CryptoService generator range.</summary>
         public const int MaxLength = 128;

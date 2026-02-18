@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PasswordManager.App"
         mc:Ignorable="d"
-        Title="Password Manager" Height="500" Width="720"
+        Title="VaultKey" Height="600" Width="960"
         Loaded="MainWindow_Loaded" IsVisibleChanged="MainWindow_IsVisibleChanged">
     <ContentControl x:Name="MainContent"/>
 </Window>

@@ -6,6 +6,7 @@ using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Core.Validators;
 using Supabase.Gotrue;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -26,16 +27,13 @@ namespace PasswordManager.Core.Services.Implementations
         public Guid? CurrentUserId => _sessionService.CurrentUserId;
         public string? CurrentUserEmail => _sessionService.CurrentUserEmail;
 
-        private readonly IUserProfileInserterWithToken? _profileInserterWithToken;
-
         public AuthService(
             Supabase.Client supabase,
             ICryptoService cryptoService,
             IUserProfileService userProfileService,
             ISessionService sessionService,
             ISupabaseExceptionMapper exceptionMapper,
-            ILogger<AuthService> logger,
-            IUserProfileInserterWithToken? profileInserterWithToken = null)
+            ILogger<AuthService> logger)
         {
             _supabase = supabase;
             _cryptoService = cryptoService;
@@ -43,7 +41,6 @@ namespace PasswordManager.Core.Services.Implementations
             _sessionService = sessionService;
             _exceptionMapper = exceptionMapper;
             _logger = logger;
-            _profileInserterWithToken = profileInserterWithToken;
 
             _supabase.Auth.AddStateChangedListener(OnAuthStateChanged);
         }
@@ -87,52 +84,37 @@ namespace PasswordManager.Core.Services.Implementations
                 return validationResult;
             }
 
-            // Attempt registration
-            var sessionResult = await CreateAuthSessionAsync(email, masterPassword);
-            if (!sessionResult.Success)
+            var (salt, key, verificationToken) = CreateCryptographicMaterials(masterPassword);
+            var encryptedTokenResult = _cryptoService.Encrypt(verificationToken, key);
+            if (!encryptedTokenResult.Success)
+                return Result.Fail("Failed to create account. Please try again.");
+
+            var signUpMetadata = new Dictionary<string, object>
             {
+                { "salt", Convert.ToBase64String(salt) },
+                { "encrypted_verification_token", encryptedTokenResult.Value.ToBase64String() }
+            };
+
+            var sessionResult = await CreateAuthSessionAsync(email, masterPassword, signUpMetadata);
+            if (!sessionResult.Success)
                 return sessionResult;
-            }
 
             var session = sessionResult.Value;
 
-            // Handle case where email confirmation is required
             if (session == null || session.User == null)
             {
                 _logger.LogInformation("User registered but email confirmation required for {Email}", email);
                 return Result.Fail("Registration successful! Please check your email to confirm your account before signing in.");
             }
 
-            // Parse user ID with null check
             if (string.IsNullOrEmpty(session.User.Id))
             {
                 _logger.LogError("User ID is null or empty after signup for {Email}", email);
+                await _supabase.Auth.SignOut();
                 return Result.Fail("Registration failed. Invalid user ID.");
             }
 
             var authUserId = Guid.Parse(session.User.Id);
-
-            var (salt, key, verificationToken) = CreateCryptographicMaterials(masterPassword);
-
-            var profileBuildResult = BuildUserProfileEntity(authUserId, salt, verificationToken, key);
-            if (!profileBuildResult.Success)
-            {
-                await _supabase.Auth.SignOut();
-                return profileBuildResult;
-            }
-
-            var profile = profileBuildResult.Value;
-            var profileResult = _profileInserterWithToken != null
-                ? await _profileInserterWithToken.InsertAsync(profile, session.AccessToken!)
-                : await _userProfileService.CreateProfileAsync(profile);
-
-            if (!profileResult.Success)
-            {
-                _logger.LogError("Failed to create profile for user {UserId}", authUserId);
-                await _supabase.Auth.SignOut();
-                return profileResult;
-            }
-
             await _supabase.Auth.SignOut();
             _logger.LogInformation("User {UserId} registered successfully; redirecting to login", authUserId);
             return Result.Ok();
@@ -234,13 +216,18 @@ namespace PasswordManager.Core.Services.Implementations
             return Result.Ok();
         }
 
-        private async Task<Result<Session?>> CreateAuthSessionAsync(string email, string masterPassword)
+        private async Task<Result<Session?>> CreateAuthSessionAsync(
+            string email,
+            string masterPassword,
+            Dictionary<string, object>? signUpMetadata = null)
         {
             try
             {
-                var session = await _supabase.Auth.SignUp(email, masterPassword);
+                var options = signUpMetadata != null
+                    ? new SignUpOptions { Data = signUpMetadata }
+                    : null;
+                var session = await _supabase.Auth.SignUp(email, masterPassword, options);
 
-                // Session can be null if email confirmation is required
                 return Result<Session?>.Ok(session);
             }
             catch (Exception ex)
@@ -280,26 +267,6 @@ namespace PasswordManager.Core.Services.Implementations
             var verificationToken = Convert.ToBase64String(verificationTokenBytes);
 
             return (salt, key, verificationToken);
-        }
-
-        private Result<UserProfileEntity> BuildUserProfileEntity(
-            Guid userId,
-            byte[] salt,
-            string verificationToken,
-            byte[] key)
-        {
-            var encryptedTokenResult = _cryptoService.Encrypt(verificationToken, key);
-            if (!encryptedTokenResult.Success)
-                return Result<UserProfileEntity>.Fail("Failed to create account. Please try again.");
-
-            var profile = new UserProfileEntity
-            {
-                Id = userId,
-                Salt = Convert.ToBase64String(salt),
-                EncryptedVerificationToken = encryptedTokenResult.Value.ToBase64String(),
-                CreatedAt = DateTime.UtcNow
-            };
-            return Result<UserProfileEntity>.Ok(profile);
         }
 
         private async Task<Result<byte[]>> VerifyMasterPasswordAsync(Guid userId, string masterPassword)

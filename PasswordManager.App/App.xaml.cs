@@ -46,7 +46,6 @@ namespace PasswordManager.App
             await supabase.InitializeAsync();
 
             services.AddSingleton(supabase);
-            services.AddSingleton<IUserProfileInserterWithToken, UserProfileInserterWithToken>();
 
             // Core services
             services.AddSingleton<ICryptoService, CryptoService>();

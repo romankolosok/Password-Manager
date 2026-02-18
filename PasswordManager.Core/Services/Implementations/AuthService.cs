@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PasswordManager.Core.Entities;
 using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;

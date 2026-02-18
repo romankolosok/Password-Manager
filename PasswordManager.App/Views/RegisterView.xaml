@@ -133,11 +133,10 @@
                     </Grid>
                     <ToggleButton x:Name="PeekPassword" Grid.Column="2" Width="28" Height="28"
                                   HorizontalAlignment="Right" VerticalAlignment="Center"
-                                  Background="Transparent" BorderThickness="0"
                                   Checked="PeekPassword_Checked" Unchecked="PeekPassword_Unchecked"
                                   ToolTip="Show Password">
                         <ToggleButton.Style>
-                            <Style TargetType="ToggleButton">
+                            <Style TargetType="ToggleButton" BasedOn="{StaticResource PeekToggleButtonStyle}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=PasswordBox}" Value="True">
@@ -152,7 +151,32 @@
                                 </Style.Triggers>
                             </Style>
                         </ToggleButton.Style>
-                        <TextBlock Text="👁" FontSize="14"/>
+                        <Grid>
+                            <ContentPresenter ContentTemplate="{StaticResource EyeShowIconTemplate}">
+                                <ContentPresenter.Style>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsChecked, ElementName=PeekPassword}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ContentPresenter.Style>
+                                </ContentPresenter>
+                            <ContentPresenter ContentTemplate="{StaticResource EyeHideIconTemplate}">
+                                <ContentPresenter.Style>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsChecked, ElementName=PeekPassword}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ContentPresenter.Style>
+                                </ContentPresenter>
+                        </Grid>
                     </ToggleButton>
                 </Grid>
             </Border>
@@ -210,11 +234,10 @@
                     </Grid>
                     <ToggleButton x:Name="PeekConfirm" Grid.Column="2" Width="28" Height="28"
                                   HorizontalAlignment="Right" VerticalAlignment="Center"
-                                  Background="Transparent" BorderThickness="0"
                                   Checked="PeekConfirm_Checked" Unchecked="PeekConfirm_Unchecked"
                                   ToolTip="Show Password">
                         <ToggleButton.Style>
-                            <Style TargetType="ToggleButton">
+                            <Style TargetType="ToggleButton" BasedOn="{StaticResource PeekToggleButtonStyle}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=ConfirmPasswordBox}" Value="True">
@@ -229,7 +252,32 @@
                                 </Style.Triggers>
                             </Style>
                         </ToggleButton.Style>
-                        <TextBlock Text="👁" FontSize="14"/>
+                        <Grid>
+                            <ContentPresenter ContentTemplate="{StaticResource EyeShowIconTemplate}">
+                                <ContentPresenter.Style>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsChecked, ElementName=PeekConfirm}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ContentPresenter.Style>
+                                </ContentPresenter>
+                            <ContentPresenter ContentTemplate="{StaticResource EyeHideIconTemplate}">
+                                <ContentPresenter.Style>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsChecked, ElementName=PeekConfirm}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ContentPresenter.Style>
+                                </ContentPresenter>
+                        </Grid>
                     </ToggleButton>
                 </Grid>
             </Border>

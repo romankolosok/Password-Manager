@@ -1,6 +1,8 @@
 using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace PasswordManager.App.Views
 {
@@ -20,6 +22,38 @@ namespace PasswordManager.App.Views
             {
                 vm.PropertyChanged += OnViewModelPropertyChanged;
                 HiddenPasswordBox.Password = vm.Password ?? string.Empty;
+            }
+            DataObject.AddPastingHandler(LengthBox, OnLengthBoxPasting);
+        }
+
+        private void LengthBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            if (sender is not TextBox box) return;
+            string proposed = box.Text.Remove(box.SelectionStart, box.SelectionLength) + e.Text;
+            e.Handled = proposed.Length > 0 && !proposed.All(char.IsDigit);
+        }
+
+        private void OnLengthBoxPasting(object sender, DataObjectPastingEventArgs e)
+        {
+            if (e.DataObject.GetDataPresent(DataFormats.Text))
+            {
+                string? text = e.DataObject.GetData(DataFormats.Text) as string;
+                if (text != null)
+                {
+                    string digitsOnly = new string(text.Where(char.IsDigit).ToArray());
+                    if (digitsOnly != text)
+                    {
+                        e.CancelCommand();
+                        if (sender is TextBox box)
+                        {
+                            int start = box.SelectionStart;
+                            string current = box.Text.Remove(start, box.SelectionLength);
+                            string result = current.Insert(start, digitsOnly);
+                            box.Text = result;
+                            box.SelectionStart = Math.Min(start + digitsOnly.Length, result.Length);
+                        }
+                    }
+                }
             }
         }
 

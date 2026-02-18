@@ -7,6 +7,37 @@
              mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="500">
     <UserControl.Resources>
         <converters:PasswordStrengthToWidthConverter x:Key="PasswordStrengthToWidthConverter"/>
+        <!-- Thin scrollbar (match VaultListView) -->
+        <Style x:Key="ThinScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="MinWidth" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid>
+                            <Border Background="#E5E7EB" CornerRadius="4" Opacity="0.4" Margin="2,4,2,4"/>
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border x:Name="thumbBorder" Background="#9CA3AF" CornerRadius="4" Margin="1,0,1,0" Opacity="0.8"/>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="thumbBorder" Property="Opacity" Value="1"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <!-- Icon-only button, no background on hover (peek) -->
         <Style x:Key="IconButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -29,6 +60,9 @@
         </Style>
     </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#F8FAFC">
+        <ScrollViewer.Resources>
+            <Style TargetType="ScrollBar" BasedOn="{StaticResource ThinScrollBarStyle}"/>
+        </ScrollViewer.Resources>
         <Grid Margin="24,20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -256,7 +290,32 @@
                                 Command="{Binding TogglePasswordVisibilityCommand}"
                                 Width="32" Height="28" Padding="4" ToolTip="Show/Hide password"
                                 VerticalAlignment="Center">
-                            <TextBlock Text="👁" FontSize="14"/>
+                            <Grid>
+                                <ContentPresenter ContentTemplate="{StaticResource EyeShowIconTemplate}">
+                                    <ContentPresenter.Style>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPasswordVisible}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ContentPresenter.Style>
+                                </ContentPresenter>
+                                <ContentPresenter ContentTemplate="{StaticResource EyeHideIconTemplate}">
+                                    <ContentPresenter.Style>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPasswordVisible}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ContentPresenter.Style>
+                                </ContentPresenter>
+                            </Grid>
                         </Button>
                     </Grid>
                 </Border>
@@ -348,7 +407,8 @@
                                 </Style>
                             </Border.Style>
                             <TextBox x:Name="LengthBox" Height="28" Padding="4,6" FontSize="14" BorderThickness="0" Background="Transparent"
-                                     VerticalContentAlignment="Center" Text="{Binding GeneratorLength, UpdateSourceTrigger=PropertyChanged}"/>
+                                     VerticalContentAlignment="Center" Text="{Binding GeneratorLength, UpdateSourceTrigger=PropertyChanged}"
+                                     PreviewTextInput="LengthBox_PreviewTextInput"/>
                         </Border>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
                             <CheckBox Content="Upper (A-Z)" IsChecked="{Binding GeneratorIncludeUpper}" Margin="0,0,16,0" VerticalAlignment="Center" Foreground="#374151" FontSize="13"/>

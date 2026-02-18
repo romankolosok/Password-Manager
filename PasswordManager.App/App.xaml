@@ -37,6 +37,51 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Eye show (password hidden): open eye icon -->
+        <DataTemplate x:Key="EyeShowIconTemplate">
+            <Viewbox Width="20" Height="20" Stretch="Uniform">
+                <Canvas Width="24" Height="24">
+                    <Path Stroke="#374151" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent"
+                          Data="M1,12 C1,12 5,4 12,4 C19,4 23,12 23,12"/>
+                    <Path Stroke="#374151" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent"
+                          Data="M1,12 C1,12 5,20 12,20 C19,20 23,12 23,12"/>
+                    <Ellipse Canvas.Left="9" Canvas.Top="9" Width="6" Height="6" Stroke="#374151" StrokeThickness="2" Fill="Transparent"/>
+                </Canvas>
+            </Viewbox>
+        </DataTemplate>
+        <!-- Eye hide (password visible): eye with slash -->
+        <DataTemplate x:Key="EyeHideIconTemplate">
+            <Viewbox Width="20" Height="20" Stretch="Uniform">
+                <Canvas Width="24" Height="24">
+                    <Path Stroke="#374151" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent"
+                          Data="M2,2 L22,22"/>
+                    <Path Stroke="#374151" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent"
+                          Data="M6.71277,6.7226 C3.66479,8.79527 2,12 2,12 C2,12 5.63636,19 12,19 C14.0503,19 15.8174,18.2734 17.2711,17.2884 M11,5.05822 C11.3254,5.02013 11.6588,5 12,5 C18.3636,5 22,12 22,12 C22,12 21.3082,13.3317 20,14.8335"/>
+                    <Path Stroke="#374151" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent"
+                          Data="M14,14.2362 C13.4692,14.7112 12.7684,15.0001 12,15.0001 C10.3431,15.0001 9,13.657 9,12.0001 C9,11.1764 9.33193,10.4303 9.86932,9.88818"/>
+                </Canvas>
+            </Viewbox>
+        </DataTemplate>
+        <!-- Peek (show/hide password) ToggleButton: no background on hover -->
+        <Style x:Key="PeekToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="Transparent"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="SecondaryButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="White"/>
             <Setter Property="Foreground" Value="#1F2937"/>

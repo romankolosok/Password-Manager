@@ -25,10 +25,14 @@ namespace PasswordManager.App.Views
 
         private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(ViewModels.EntryDetailViewModel.Password) && DataContext is ViewModels.EntryDetailViewModel vm)
+            if (e.PropertyName != nameof(ViewModels.EntryDetailViewModel.Password) || _isSyncing)
+                return;
+            if (DataContext is ViewModels.EntryDetailViewModel vm)
             {
                 _isSyncing = true;
-                HiddenPasswordBox.Password = vm.Password ?? string.Empty;
+                var p = vm.Password ?? string.Empty;
+                HiddenPasswordBox.Password = p;
+                VisiblePasswordBox.Text = p;
                 _isSyncing = false;
             }
         }

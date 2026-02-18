@@ -3,9 +3,33 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="500">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Margin="16">
+             xmlns:converters="clr-namespace:PasswordManager.App.Converters"
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="500">
+    <UserControl.Resources>
+        <converters:PasswordStrengthToWidthConverter x:Key="PasswordStrengthToWidthConverter"/>
+        <!-- Icon-only button, no background on hover (peek) -->
+        <Style x:Key="IconButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="Transparent"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#F8FAFC">
+        <Grid Margin="24,20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -28,10 +52,13 @@
             </Grid.RowDefinitions>
 
             <!-- Back + Title -->
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,20">
-                <Button Content="← Back" Command="{Binding CancelCommand}" Padding="12,6" Margin="0,0,16,0"
-                        Cursor="Hand" Background="Transparent" BorderThickness="0" FontSize="14"/>
-                <TextBlock VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold">
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,24" VerticalAlignment="Center">
+                <Button Command="{Binding CancelCommand}" Cursor="Hand" Background="Transparent" BorderThickness="0"
+                        Padding="0,6" Margin="0,0,12,0" Style="{StaticResource IconButtonStyle}"
+                        ToolTip="Back">
+                    <TextBlock Text="←" FontSize="20" Foreground="#374151" VerticalAlignment="Center"/>
+                </Button>
+                <TextBlock VerticalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="#111827">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Text" Value="Add New Entry"/>
@@ -46,119 +73,376 @@
             </StackPanel>
 
             <!-- Site Name * -->
-            <TextBlock Grid.Row="1" Text="Site Name *" FontSize="14" Margin="0,0,0,4"/>
-            <TextBox Grid.Row="2" Text="{Binding WebsiteName, UpdateSourceTrigger=PropertyChanged}"
-                     Height="32" Padding="8,4" FontSize="14" Margin="0,0,0,16"/>
+            <TextBlock Grid.Row="1" Text="Site Name *" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Grid.Row="2" Margin="0,0,0,16">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=SiteNameBox}" Value="True">
+                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <TextBox x:Name="SiteNameBox" Height="28" Padding="0,6,4,0" FontSize="14" BorderThickness="0" Background="Transparent"
+                             VerticalContentAlignment="Center" Text="{Binding WebsiteName, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="e.g., Gmail, GitHub, Banking" IsHitTestVisible="False" Margin="0,0,0,2" FontSize="14" Foreground="#9CA3AF" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding Text, ElementName=SiteNameBox}" Value=""/>
+                                            <Condition Binding="{Binding IsKeyboardFocused, ElementName=SiteNameBox}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Border>
 
             <!-- URL -->
-            <TextBlock Grid.Row="3" Text="URL" FontSize="14" Margin="0,0,0,4"/>
-            <TextBox Grid.Row="4" Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}"
-                     Height="32" Padding="8,4" FontSize="14" Margin="0,0,0,16"/>
+            <TextBlock Grid.Row="3" Text="URL" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Grid.Row="4" Margin="0,0,0,16">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=UrlBox}" Value="True">
+                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <TextBox x:Name="UrlBox" Height="28" Padding="0,6,4,0" FontSize="14" BorderThickness="0" Background="Transparent"
+                             VerticalContentAlignment="Center" Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="https://example.com" IsHitTestVisible="False" Margin="0,0,0,2" FontSize="14" Foreground="#9CA3AF" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding Text, ElementName=UrlBox}" Value=""/>
+                                            <Condition Binding="{Binding IsKeyboardFocused, ElementName=UrlBox}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Border>
 
             <!-- Username -->
-            <TextBlock Grid.Row="5" Text="Username" FontSize="14" Margin="0,0,0,4"/>
-            <TextBox Grid.Row="6" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
-                     Height="32" Padding="8,4" FontSize="14" Margin="0,0,0,16"/>
+            <TextBlock Grid.Row="5" Text="Username" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Grid.Row="6" Margin="0,0,0,16">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=UsernameBox}" Value="True">
+                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <TextBox x:Name="UsernameBox" Height="28" Padding="0,6,4,0" FontSize="14" BorderThickness="0" Background="Transparent"
+                             VerticalContentAlignment="Center" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Enter username or email" IsHitTestVisible="False" Margin="0,0,0,2" FontSize="14" Foreground="#9CA3AF" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding Text, ElementName=UsernameBox}" Value=""/>
+                                            <Condition Binding="{Binding IsKeyboardFocused, ElementName=UsernameBox}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Border>
 
-            <!-- Password + show + generate -->
-            <TextBlock Grid.Row="7" Text="Password" FontSize="14" Margin="0,0,0,4"/>
+            <!-- Password -->
+            <TextBlock Grid.Row="7" Text="Password" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
             <Grid Grid.Row="8" Margin="0,0,0,4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Margin="0,0,12,0">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=HiddenPasswordBox}" Value="True">
+                                    <Setter Property="BorderBrush" Value="#2563EB"/>
+                                    <Setter Property="BorderThickness" Value="2"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=VisiblePasswordBox}" Value="True">
+                                    <Setter Property="BorderBrush" Value="#2563EB"/>
+                                    <Setter Property="BorderThickness" Value="2"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0">
+                            <PasswordBox x:Name="HiddenPasswordBox" Height="28" Padding="0,6,4,0" FontSize="14"
+                                         BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center"
+                                         PasswordChanged="HiddenPasswordBox_PasswordChanged">
+                                <PasswordBox.Style>
+                                    <Style TargetType="PasswordBox">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPasswordVisible}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </PasswordBox.Style>
+                            </PasswordBox>
+                            <TextBox x:Name="VisiblePasswordBox" Height="28" Padding="0,6,4,0" FontSize="14" FontFamily="Consolas"
+                                     Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}"
+                                     TextChanged="VisiblePasswordBox_TextChanged" BorderThickness="0" Background="Transparent"
+                                     VerticalContentAlignment="Center">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPasswordVisible}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                            <TextBlock Text="Enter or generate password" IsHitTestVisible="False" Margin="0,0,0,2" FontSize="14" Foreground="#9CA3AF" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="{x:Type TextBlock}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsPasswordEmpty}" Value="True"/>
+                                                    <Condition Binding="{Binding IsKeyboardFocused, ElementName=HiddenPasswordBox}" Value="False"/>
+                                                    <Condition Binding="{Binding IsKeyboardFocused, ElementName=VisiblePasswordBox}" Value="False"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                        <Button Grid.Column="1" Style="{StaticResource IconButtonStyle}"
+                                Command="{Binding TogglePasswordVisibilityCommand}"
+                                Width="32" Height="28" Padding="4" ToolTip="Show/Hide password"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="👁" FontSize="14"/>
+                        </Button>
+                    </Grid>
+                </Border>
+                <Button Grid.Column="1" Command="{Binding GeneratePasswordCommand}" ToolTip="Generate password"
+                        MinWidth="40" Height="40" Padding="12,0" Cursor="Hand"
+                        Background="White" BorderBrush="#E5E7EB" BorderThickness="1">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Viewbox Width="20" Height="20" Stretch="Uniform">
+                                        <Canvas Width="16" Height="16">
+                                            <Path x:Name="iconPath" Fill="#6B7280" RenderTransformOrigin="0,0">
+                                                <Path.RenderTransform>
+                                                    <TranslateTransform X="-23" Y="239"/>
+                                                </Path.RenderTransform>
+                                                <Path.Data>
+                                                    <PathGeometry Figures="M29.5,-228 h5 a0.5,0.5 0 0 0 0.5,-0.5 v-4 a0.5,0.5 0 0 0 -0.5,-0.5 H34 v-1 a2,2 0 0 0 -2,-2 2,2 0 0 0 -2,2 v1 h-0.5 a0.5,0.5 0 0 0 -0.5,0.5 v4 a0.5,0.5 0 0 0 0.5,0.5 Z m1.5,-6 a1,1 0 0 1 1,-1 1,1 0 0 1 1,1 v1 H31 Z m-1,2 h4 v3 H30 Z m9,0 a7.008,7.008 0 0 1 -7,7 7.008,7.008 0 0 1 -7,-7 v-1.293 l-1.146,1.147 a0.5,0.5 0 0 1 -0.354,0.146 0.5,0.5 0 0 1 -0.354,-0.146 0.5,0.5 0 0 1 0,-0.708 l2,-2 a0.518,0.518 0 0 1 0.163,-0.109 0.505,0.505 0 0 1 0.382,0 0.518,0.518 0 0 1 0.163,0.109 l2,2 a0.5,0.5 0 0 1 0,0.708 0.5,0.5 0 0 1 -0.354,0.146 0.5,0.5 0 0 1 -0.354,-0.146 L26,-233.293 V-232 a6.006,6.006 0 0 0 6,6 6.006,6.006 0 0 0 6,-6 6.006,6.006 0 0 0 -6,-6 a0.5,0.5 0 0 1 -0.5,-0.5 0.5,0.5 0 0 1 0.5,-0.5 A7.008,7.008 0 0 1 39,-232 Z"/>
+                                                </Path.Data>
+                                            </Path>
+                                        </Canvas>
+                                    </Viewbox>
+                                </Grid>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#22C55E"/>
+                                    <Setter TargetName="border" Property="BorderBrush" Value="#22C55E"/>
+                                    <Setter TargetName="iconPath" Property="Fill" Value="White"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+            <!-- Password strength: gradient progress bar + bits -->
+            <Grid Grid.Row="9" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Grid Grid.Column="0">
-                    <PasswordBox x:Name="HiddenPasswordBox" Height="32" Padding="8,4" FontSize="14"
-                                 PasswordChanged="HiddenPasswordBox_PasswordChanged">
-                        <PasswordBox.Style>
-                            <Style TargetType="PasswordBox">
-                                <Setter Property="Visibility" Value="Visible"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsPasswordVisible}" Value="True">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </PasswordBox.Style>
-                    </PasswordBox>
-                    <TextBox x:Name="VisiblePasswordBox" Height="32" Padding="8,4" FontSize="14" FontFamily="Consolas"
-                             Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}"
-                             TextChanged="VisiblePasswordBox_TextChanged">
-                        <TextBox.Style>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsPasswordVisible}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBox.Style>
-                    </TextBox>
+                <Grid Grid.Column="0" Height="8" MinWidth="120" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <Border x:Name="StrengthTrack" Background="#E5E7EB" CornerRadius="4"/>
+                    <Border HorizontalAlignment="Left" CornerRadius="4" MinWidth="0">
+                        <Border.Width>
+                            <MultiBinding Converter="{StaticResource PasswordStrengthToWidthConverter}" ConverterParameter="128">
+                                <Binding Path="PasswordStrength"/>
+                                <Binding Path="ActualWidth" ElementName="StrengthTrack"/>
+                            </MultiBinding>
+                        </Border.Width>
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#EF4444" Offset="0"/>
+                                <GradientStop Color="#F97316" Offset="0.25"/>
+                                <GradientStop Color="#EAB308" Offset="0.5"/>
+                                <GradientStop Color="#22C55E" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
                 </Grid>
-                <Button Grid.Column="1" Content="👁" ToolTip="Show/Hide password"
-                        Command="{Binding TogglePasswordVisibilityCommand}"
-                        Width="36" Height="32" Margin="4,0,0,0" Cursor="Hand" Background="Transparent" BorderThickness="1"/>
-                <Button Grid.Column="2" Content="⟳" ToolTip="Generate password" Command="{Binding GeneratePasswordCommand}"
-                        Width="36" Height="32" Margin="4,0,0,0" Cursor="Hand" Background="Transparent" BorderThickness="1"/>
-            </Grid>
-            <StackPanel Grid.Row="9" Orientation="Horizontal" Margin="0,0,0,16">
-                <ProgressBar Value="{Binding PasswordStrength}" Maximum="128" Height="6" Width="200"
-                             VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock VerticalAlignment="Center" FontSize="12" Foreground="Gray">
-                    <Run Text="{Binding PasswordStrengthLabel, Mode=OneWay}"/>
-                    <Run Text=" ("/>
+                <TextBlock Grid.Column="1" FontSize="12" Foreground="#9CA3AF" VerticalAlignment="Center">
+                    <Run Text="("/>
                     <Run Text="{Binding PasswordStrength, StringFormat=N0, Mode=OneWay}"/>
                     <Run Text=" bits)"/>
                 </TextBlock>
-            </StackPanel>
+            </Grid>
 
             <!-- Generator Options -->
-            <Border Grid.Row="10" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,16">
+            <Border Grid.Row="10" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,16" Background="White">
                 <StackPanel>
-                    <TextBlock Text="Generator Options" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock Text="Generator Options" FontSize="14" FontWeight="SemiBold" Foreground="#111827" Margin="0,0,0,12"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="80"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Length:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBox Grid.Column="1" Text="{Binding GeneratorLength, UpdateSourceTrigger=PropertyChanged}" Padding="4,2"/>
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,0,0,0">
-                            <CheckBox Content="Upper" IsChecked="{Binding GeneratorIncludeUpper}" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                            <CheckBox Content="Lower" IsChecked="{Binding GeneratorIncludeLower}" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                            <CheckBox Content="Digits" IsChecked="{Binding GeneratorIncludeDigits}" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                            <CheckBox Content="Symbols" IsChecked="{Binding GeneratorIncludeSymbols}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="0" Text="Length:" FontSize="14" Foreground="#374151" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Border Grid.Column="1">
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=LengthBox}" Value="True">
+                                            <Setter Property="BorderBrush" Value="#2563EB"/>
+                                            <Setter Property="BorderThickness" Value="2"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBox x:Name="LengthBox" Height="28" Padding="4,6" FontSize="14" BorderThickness="0" Background="Transparent"
+                                     VerticalContentAlignment="Center" Text="{Binding GeneratorLength, UpdateSourceTrigger=PropertyChanged}"/>
+                        </Border>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                            <CheckBox Content="Upper (A-Z)" IsChecked="{Binding GeneratorIncludeUpper}" Margin="0,0,16,0" VerticalAlignment="Center" Foreground="#374151" FontSize="13"/>
+                            <CheckBox Content="Digits (0-9)" IsChecked="{Binding GeneratorIncludeDigits}" Margin="0,0,16,0" VerticalAlignment="Center" Foreground="#374151" FontSize="13"/>
+                            <CheckBox Content="Lower (a-z)" IsChecked="{Binding GeneratorIncludeLower}" Margin="0,0,16,0" VerticalAlignment="Center" Foreground="#374151" FontSize="13"/>
+                            <CheckBox Content="Symbols (!@#...)" IsChecked="{Binding GeneratorIncludeSymbols}" VerticalAlignment="Center" Foreground="#374151" FontSize="13"/>
                         </StackPanel>
                     </Grid>
                 </StackPanel>
             </Border>
 
             <!-- Category -->
-            <TextBlock Grid.Row="11" Text="Category" FontSize="14" Margin="0,0,0,4"/>
-            <TextBox Grid.Row="12" Text="{Binding Category, UpdateSourceTrigger=PropertyChanged}"
-                     Height="32" Padding="8,4" FontSize="14" Margin="0,0,0,16"/>
+            <TextBlock Grid.Row="11" Text="Category" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Grid.Row="12" Margin="0,0,0,16">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=CategoryBox}" Value="True">
+                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <TextBox x:Name="CategoryBox" Height="28" Padding="0,6,4,0" FontSize="14" BorderThickness="0" Background="Transparent"
+                             VerticalContentAlignment="Center" Text="{Binding Category, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="e.g., Work, Personal, Finance" IsHitTestVisible="False" Margin="0,0,0,2" FontSize="14" Foreground="#9CA3AF" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding Text, ElementName=CategoryBox}" Value=""/>
+                                            <Condition Binding="{Binding IsKeyboardFocused, ElementName=CategoryBox}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Border>
 
             <!-- Notes -->
-            <TextBlock Grid.Row="13" Text="Notes" FontSize="14" Margin="0,0,0,4"/>
-            <TextBox Grid.Row="14" Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
-                     Height="60" Padding="8,4" FontSize="14" Margin="0,0,0,16" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+            <TextBlock Grid.Row="13" Text="Notes" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Grid.Row="14" Margin="0,0,0,16">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=NotesBox}" Value="True">
+                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <TextBox x:Name="NotesBox" Height="60" Padding="0,6,4,4" FontSize="14" BorderThickness="0" Background="Transparent"
+                             TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                             VerticalContentAlignment="Top" Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Add any additional notes..." IsHitTestVisible="False" Margin="0,6,0,0" FontSize="14" Foreground="#9CA3AF" VerticalAlignment="Top">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding Text, ElementName=NotesBox}" Value=""/>
+                                            <Condition Binding="{Binding IsKeyboardFocused, ElementName=NotesBox}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Border>
 
             <!-- Favorite -->
-            <CheckBox Grid.Row="15" Content="Favorite" IsChecked="{Binding IsFavorite}" Margin="0,0,0,20"/>
+            <CheckBox Grid.Row="15" Content="Favorite" IsChecked="{Binding IsFavorite}" Margin="0,0,0,24"
+                      Foreground="#374151" FontSize="14" VerticalAlignment="Center"/>
 
             <!-- Buttons -->
             <StackPanel Grid.Row="16" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
-                <Button Content="Cancel" Command="{Binding CancelCommand}" Padding="20,8" Margin="0,0,12,0"
-                        Cursor="Hand" Background="Transparent" BorderThickness="1" BorderBrush="#999"/>
-                <Button Content="Save" Command="{Binding SaveCommand}" Padding="20,8"
-                        Cursor="Hand" Background="#0078D7" Foreground="White" BorderThickness="0"/>
+                <Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,12,0"/>
+                <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}"/>
             </StackPanel>
 
             <!-- Error message -->
-            <TextBlock Grid.Row="17" Text="{Binding ErrorMessage}" Foreground="Red" FontSize="13"
+            <TextBlock Grid.Row="17" Text="{Binding ErrorMessage}" Foreground="#DC2626" FontSize="13" Margin="0,8,0,0"
                        Visibility="{Binding ErrorMessageVisible, Converter={StaticResource BoolToVisibility}}"/>
         </Grid>
     </ScrollViewer>

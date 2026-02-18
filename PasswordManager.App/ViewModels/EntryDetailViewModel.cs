@@ -33,7 +33,11 @@ namespace PasswordManager.App.ViewModels
         [NotifyPropertyChangedFor(nameof(PasswordStrength))]
         [NotifyPropertyChangedFor(nameof(PasswordStrengthLabel))]
         [NotifyPropertyChangedFor(nameof(HasUnsavedChanges))]
+        [NotifyPropertyChangedFor(nameof(IsPasswordEmpty))]
         private string _password = string.Empty;
+
+        /// <summary>True when Password is null or empty (for placeholder visibility).</summary>
+        public bool IsPasswordEmpty => string.IsNullOrEmpty(Password);
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(HasUnsavedChanges))]

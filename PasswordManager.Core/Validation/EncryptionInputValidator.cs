@@ -1,11 +1,11 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace PasswordManager.Core.Validators
 {
     internal class EncryptionInput
     {
-        public string Plaintext { get; set; }
-        public byte[] Key { get; set; }
+        public required string Plaintext { get; set; }
+        public required byte[] Key { get; set; }
     }
 
     internal class EncryptionInputValidator : AbstractValidator<EncryptionInput>

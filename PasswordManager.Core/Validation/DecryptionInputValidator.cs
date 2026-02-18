@@ -1,12 +1,12 @@
-﻿using FluentValidation;
+using FluentValidation;
 using PasswordManager.Core.Models;
 
 namespace PasswordManager.Core.Validators
 {
     internal class DecryptionInput
     {
-        public EncryptedBlob Blob { get; set; }
-        public byte[] Key { get; set; }
+        public required EncryptedBlob Blob { get; set; }
+        public required byte[] Key { get; set; }
     }
 
     internal class DecryptionInputValidator : AbstractValidator<DecryptionInput>

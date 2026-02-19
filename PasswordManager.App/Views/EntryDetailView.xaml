@@ -362,16 +362,22 @@
                     <Border x:Name="StrengthTrack" Background="#E5E7EB" CornerRadius="4"/>
                     <Border HorizontalAlignment="Left" CornerRadius="4" MinWidth="0">
                         <Border.Width>
-                            <MultiBinding Converter="{StaticResource PasswordStrengthToWidthConverter}" ConverterParameter="128">
+                            <MultiBinding Converter="{StaticResource PasswordStrengthToWidthConverter}" ConverterParameter="4">
                                 <Binding Path="PasswordStrength"/>
                                 <Binding Path="ActualWidth" ElementName="StrengthTrack"/>
                             </MultiBinding>
                         </Border.Width>
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <!-- Zxcvbn score 0: Very Weak -->
                                 <GradientStop Color="#EF4444" Offset="0"/>
+                                <!-- Zxcvbn score 1: Weak -->
                                 <GradientStop Color="#F97316" Offset="0.25"/>
+                                <!-- Zxcvbn score 2: Fair -->
                                 <GradientStop Color="#EAB308" Offset="0.5"/>
+                                <!-- Zxcvbn score 3: Good/Strong -->
+                                <GradientStop Color="#84CC16" Offset="0.75"/>
+                                <!-- Zxcvbn score 4: Very Strong -->
                                 <GradientStop Color="#22C55E" Offset="1"/>
                             </LinearGradientBrush>
                         </Border.Background>
@@ -380,7 +386,7 @@
                 <TextBlock Grid.Column="1" FontSize="12" Foreground="#9CA3AF" VerticalAlignment="Center">
                     <Run Text="("/>
                     <Run Text="{Binding PasswordStrength, StringFormat=N0, Mode=OneWay}"/>
-                    <Run Text=" bits)"/>
+                    <Run Text=" points)"/>
                 </TextBlock>
             </Grid>
 

@@ -64,6 +64,10 @@ namespace PasswordManager.App.ViewModels
         [ObservableProperty]
         private string _passwordStrengthLabel = string.Empty;
 
+        /// <summary>Zxcvbn feedback/suggestions for the current password (for info tooltip).</summary>
+        [ObservableProperty]
+        private string _passwordStrengthFeedback = string.Empty;
+
         [ObservableProperty]
         private bool _isEditing;
 
@@ -252,19 +256,13 @@ namespace PasswordManager.App.ViewModels
             {
                 PasswordStrength = 0;
                 PasswordStrengthLabel = string.Empty;
+                PasswordStrengthFeedback = string.Empty;
                 return;
             }
 
             PasswordStrength = _passwordStrengthChecker.CheckStrength(Password);
-
-            PasswordStrengthLabel = PasswordStrength switch
-            {
-                0 => "Very Weak",
-                1 => "Weak",
-                2 => "Fair",
-                3 => "Strong",
-                _ => "Very Strong"
-            };
+            PasswordStrengthLabel = _passwordStrengthChecker.GetStrengthLabel(PasswordStrength);
+            PasswordStrengthFeedback = _passwordStrengthChecker.GetFeedback(Password);
         }
     }
 }

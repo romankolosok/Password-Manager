@@ -2,6 +2,10 @@
 {
     public interface IPasswordStrengthChecker
     {
-        int CheckStrength(string password);
+        public int CheckStrength(string password);
+
+        public string GetFeedback(string password);
+
+        public string GetStrengthLabel(int strength);
     }
 }

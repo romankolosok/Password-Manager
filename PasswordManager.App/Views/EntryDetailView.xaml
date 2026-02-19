@@ -6,7 +6,8 @@
              xmlns:converters="clr-namespace:PasswordManager.App.Converters"
              mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="500">
     <UserControl.Resources>
-        <converters:PasswordStrengthToWidthConverter x:Key="PasswordStrengthToWidthConverter"/>
+        <converters:PasswordStrengthToBrushConverter x:Key="PasswordStrengthToBrushConverter"/>
+        <converters:PasswordStrengthSegmentToBrushConverter x:Key="PasswordStrengthSegmentToBrushConverter"/>
         <!-- Thin scrollbar (match VaultListView) -->
         <Style x:Key="ThinScrollBarStyle" TargetType="ScrollBar">
             <Setter Property="Width" Value="8"/>
@@ -352,42 +353,39 @@
                     </Button.Template>
                 </Button>
             </Grid>
-            <!-- Password strength: gradient progress bar + bits -->
+            <!-- Password strength: gradient progress bar + label + info (suggestions on hover) -->
             <Grid Grid.Row="9" Margin="0,0,0,16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+                <!-- Four semi-separated segments; gradient fixed across total length; fill by strength 0-4 -->
                 <Grid Grid.Column="0" Height="8" MinWidth="120" VerticalAlignment="Center" Margin="0,0,12,0">
-                    <Border x:Name="StrengthTrack" Background="#E5E7EB" CornerRadius="4"/>
-                    <Border HorizontalAlignment="Left" CornerRadius="4" MinWidth="0">
-                        <Border.Width>
-                            <MultiBinding Converter="{StaticResource PasswordStrengthToWidthConverter}" ConverterParameter="4">
-                                <Binding Path="PasswordStrength"/>
-                                <Binding Path="ActualWidth" ElementName="StrengthTrack"/>
-                            </MultiBinding>
-                        </Border.Width>
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <!-- Zxcvbn score 0: Very Weak -->
-                                <GradientStop Color="#EF4444" Offset="0"/>
-                                <!-- Zxcvbn score 1: Weak -->
-                                <GradientStop Color="#F97316" Offset="0.25"/>
-                                <!-- Zxcvbn score 2: Fair -->
-                                <GradientStop Color="#EAB308" Offset="0.5"/>
-                                <!-- Zxcvbn score 3: Good/Strong -->
-                                <GradientStop Color="#84CC16" Offset="0.75"/>
-                                <!-- Zxcvbn score 4: Very Strong -->
-                                <GradientStop Color="#22C55E" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
-                    </Border>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Margin="0,0,2,0" CornerRadius="4"
+                            Background="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthSegmentToBrushConverter}, ConverterParameter=1, Mode=OneWay}"/>
+                    <Border Grid.Column="1" Margin="2,0,2,0" CornerRadius="4"
+                            Background="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthSegmentToBrushConverter}, ConverterParameter=2, Mode=OneWay}"/>
+                    <Border Grid.Column="2" Margin="2,0,2,0" CornerRadius="4"
+                            Background="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthSegmentToBrushConverter}, ConverterParameter=3, Mode=OneWay}"/>
+                    <Border Grid.Column="3" Margin="2,0,0,0" CornerRadius="4"
+                            Background="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthSegmentToBrushConverter}, ConverterParameter=4, Mode=OneWay}"/>
                 </Grid>
-                <TextBlock Grid.Column="1" FontSize="12" Foreground="#9CA3AF" VerticalAlignment="Center">
-                    <Run Text="("/>
-                    <Run Text="{Binding PasswordStrength, StringFormat=N0, Mode=OneWay}"/>
-                    <Run Text=" points)"/>
-                </TextBlock>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding PasswordStrengthLabel, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                               Foreground="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthToBrushConverter}, Mode=OneWay}"
+                               Margin="0,0,6,0"/>
+                    <Border Width="18" Height="18" CornerRadius="9" Background="#2563EB" Cursor="Help"
+                            ToolTip="{Binding PasswordStrengthFeedback, Mode=OneWay}">
+                        <TextBlock Text="i" FontSize="12" FontStyle="Italic" FontWeight="SemiBold" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </StackPanel>
             </Grid>
 
             <!-- Generator Options -->

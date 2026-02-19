@@ -1,9 +1,8 @@
-using System;
-using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
+using System.Windows;
 
 namespace PasswordManager.App.ViewModels
 {
@@ -12,6 +11,7 @@ namespace PasswordManager.App.ViewModels
         private readonly IVaultService _vaultService;
         private readonly ICryptoService _cryptoService;
         private readonly ISessionService _sessionService;
+        private readonly IPasswordStrengthChecker _passwordStrengthChecker;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PasswordStrength))]
@@ -59,7 +59,7 @@ namespace PasswordManager.App.ViewModels
         public bool ErrorMessageVisible => !string.IsNullOrWhiteSpace(ErrorMessage);
 
         [ObservableProperty]
-        private double _passwordStrength;
+        private int _passwordStrength;
 
         [ObservableProperty]
         private string _passwordStrengthLabel = string.Empty;
@@ -91,11 +91,15 @@ namespace PasswordManager.App.ViewModels
         public event EventHandler? EntrySaved;
         public event EventHandler? Cancelled;
 
-        public EntryDetailViewModel(IVaultService vaultService, ICryptoService cryptoService, ISessionService sessionService)
+        public EntryDetailViewModel(IVaultService vaultService,
+            ICryptoService cryptoService,
+            ISessionService sessionService,
+            IPasswordStrengthChecker passwordStrengthChecker)
         {
             _vaultService = vaultService;
             _cryptoService = cryptoService;
             _sessionService = sessionService;
+            _passwordStrengthChecker = passwordStrengthChecker;
         }
 
         public void LoadEntry(VaultEntry entry)
@@ -251,14 +255,14 @@ namespace PasswordManager.App.ViewModels
                 return;
             }
 
-            PasswordStrength = _cryptoService.CalcuateEntropy(Password);
+            PasswordStrength = _passwordStrengthChecker.CheckStrength(Password);
 
             PasswordStrengthLabel = PasswordStrength switch
             {
-                < 28 => "Very Weak",
-                < 36 => "Weak",
-                < 60 => "Fair",
-                < 128 => "Strong",
+                0 => "Very Weak",
+                1 => "Weak",
+                2 => "Fair",
+                3 => "Strong",
                 _ => "Very Strong"
             };
         }

@@ -233,23 +233,5 @@ namespace PasswordManager.Core.Services.Implementations
                 Array.Clear(poolArray, 0, poolArray.Length);
             }
         }
-
-        public double CalcuateEntropy(string password)
-        {
-            if (string.IsNullOrEmpty(password))
-                return 0;
-            // Define character sets
-            const string UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            const string LOWERCASE = "abcdefghijklmnopqrstuvwxyz";
-            const string DIGITS = "0123456789";
-            const string SYMBOLS = "!@#$%^&*()-_=+[]{}|;:,.<>?";
-            int poolSize = 0;
-            if (password.Any(c => UPPERCASE.Contains(c))) poolSize += UPPERCASE.Length;
-            if (password.Any(c => LOWERCASE.Contains(c))) poolSize += LOWERCASE.Length;
-            if (password.Any(c => DIGITS.Contains(c))) poolSize += DIGITS.Length;
-            if (password.Any(c => SYMBOLS.Contains(c))) poolSize += SYMBOLS.Length;
-            // Entropy formula: E = L * log2(N)
-            return password.Length * Math.Log2(poolSize);
-        }
     }
 }

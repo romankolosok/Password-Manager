@@ -13,7 +13,5 @@ namespace PasswordManager.Core.Services.Interfaces
         public byte[] GenerateSalt();
 
         public Result<string> GeneratePassword(PasswordOptions options);
-
-        public double CalcuateEntropy(string password);
     }
 }

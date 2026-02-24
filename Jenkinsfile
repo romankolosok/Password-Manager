@@ -35,7 +35,7 @@ pipeline {
             }
             post {
                 always {
-                    junit '**/test-results.xml'
+                    junit allowEmptyResults: true, testResults: '**/test-results.xml'
                     recordCoverage(
                         tools: [[parser: 'COBERTURA', pattern: '**/coverage.cobertura.xml']],
                         id: 'dotnet-coverage',
@@ -83,7 +83,7 @@ pipeline {
 
     post {
         always {
-            step([$class: 'GitHubCommitStatusSetter', contextSource: [$class: 'DefaultCommitContextSource', context: 'Jenkins/PR-Check']])
+            step([$class: 'GitHubCommitStatusSetter', contextSource: [$class: 'DefaultCommitContextSource']])
             cleanWs()
         }
     }

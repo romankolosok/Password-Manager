@@ -45,7 +45,7 @@ pipeline {
             }
         }
 
-        // Build and release the app. Requires PUBLISH_RELEASE=true and a Windows agent (label 'windows') — WPF cannot build on Linux.
+        // Build and release the app. Requires PUBLISH_RELEASE=true. Runs on current agent; on Linux the stage is skipped (WPF needs Windows). Add a Windows agent with label 'windows' and use it for this stage to publish.
         stage('Publish & Release') {
             when {
                 allOf {
@@ -54,28 +54,28 @@ pipeline {
                     expression { return env.PUBLISH_RELEASE == 'true' }
                 }
             }
-            agent { label 'windows' }
             steps {
-                checkout scm
-                echo "Deploying release from branch: ${env.BRANCH_NAME}"
-                bat "dotnet restore ${env.PROJECT_PATH}"
-                bat "dotnet publish ${env.APP_PROJECT_PATH} --configuration Release -o publish"
-                powershell "Compress-Archive -Path .\\publish\\* -DestinationPath password-manager-release.zip -Force"
-
                 script {
-                    def tag = "v1.0.${env.BUILD_NUMBER}"
-                    // 1. Create GitHub Release (PowerShell on Windows agent)
-                    powershell """
-                        \$body = @{ tag_name = '${tag}'; target_commitish = '${env.BRANCH_NAME}'; name = '${tag}'; body = 'Automated release'; draft = \$false; prerelease = \$false } | ConvertTo-Json
-                        \$r = Invoke-RestMethod -Uri 'https://api.github.com/repos/${env.REPO_OWNER}/${env.REPO_NAME}/releases' -Method Post -Headers @{ Authorization = "token ${env.GITHUB_TOKEN}"; 'Content-Type' = 'application/json' } -Body \$body
-                        \$r.id | Out-File -FilePath release_id.txt -NoNewline
-                    """
-                    // 2. Upload asset
-                    def releaseId = readFile('release_id.txt').trim()
-                    powershell """
-                        \$uri = "https://uploads.github.com/repos/${env.REPO_OWNER}/${env.REPO_NAME}/releases/${releaseId}/assets?name=password-manager-release.zip"
-                        Invoke-RestMethod -Uri \$uri -Method Post -Headers @{ Authorization = "token ${env.GITHUB_TOKEN}"; 'Content-Type' = 'application/zip' } -InFile 'password-manager-release.zip'
-                    """
+                    if (env.NODE_NAME?.contains('windows') || !isUnix()) {
+                        echo "Deploying release from branch: ${env.BRANCH_NAME}"
+                        checkout scm
+                        bat "dotnet restore ${env.PROJECT_PATH}"
+                        bat "dotnet publish ${env.APP_PROJECT_PATH} --configuration Release -o publish"
+                        powershell "Compress-Archive -Path .\\publish\\* -DestinationPath password-manager-release.zip -Force"
+                        def tag = "v1.0.${env.BUILD_NUMBER}"
+                        powershell """
+                            \$body = @{ tag_name = '${tag}'; target_commitish = '${env.BRANCH_NAME}'; name = '${tag}'; body = 'Automated release'; draft = \$false; prerelease = \$false } | ConvertTo-Json
+                            \$r = Invoke-RestMethod -Uri 'https://api.github.com/repos/${env.REPO_OWNER}/${env.REPO_NAME}/releases' -Method Post -Headers @{ Authorization = "token ${env.GITHUB_TOKEN}"; 'Content-Type' = 'application/json' } -Body \$body
+                            \$r.id | Out-File -FilePath release_id.txt -NoNewline
+                        """
+                        def releaseId = readFile('release_id.txt').trim()
+                        powershell """
+                            \$uri = "https://uploads.github.com/repos/${env.REPO_OWNER}/${env.REPO_NAME}/releases/${releaseId}/assets?name=password-manager-release.zip"
+                            Invoke-RestMethod -Uri \$uri -Method Post -Headers @{ Authorization = "token ${env.GITHUB_TOKEN}"; 'Content-Type' = 'application/zip' } -InFile 'password-manager-release.zip'
+                        """
+                    } else {
+                        echo "Skipping app publish: WPF requires Windows. Set PUBLISH_RELEASE=true and run this job on a Windows agent (label 'windows') to publish."
+                    }
                 }
             }
         }

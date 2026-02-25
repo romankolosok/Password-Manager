@@ -28,10 +28,10 @@ pipeline {
             }
         }
 
-        // Test Core library only.
+        // Test Core library only. coverlet.msbuild: coverage + threshold (fail build if below 80% line coverage).
         stage('Test & Coverage') {
             steps {
-                sh "dotnet test ${env.TESTS_PROJECT_PATH} --configuration Release --no-build --logger 'junit;LogFilePath=test-results.xml' --collect:'XPlat Code Coverage'"
+                sh "dotnet test ${env.TESTS_PROJECT_PATH} --configuration Release --no-build --logger 'junit;LogFilePath=test-results.xml' /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=coverage.cobertura.xml /p:Threshold=80 /p:ThresholdType=line"
             }
             post {
                 always {

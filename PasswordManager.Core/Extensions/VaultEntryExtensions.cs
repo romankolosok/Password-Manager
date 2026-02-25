@@ -13,15 +13,16 @@ namespace PasswordManager.Core.Models
         /// </summary>
         public static VaultEntryPayload ToPayload(this VaultEntry entry)
         {
-            return new VaultEntryPayload(
-                WebsiteName: entry.WebsiteName ?? "",
-                Username: entry.Username ?? "",
-                Password: entry.Password ?? "",
-                Url: entry.Url ?? "",
-                Notes: entry.Notes ?? "",
-                Category: entry.Category ?? "",
-                IsFavorite: entry.IsFavorite
-            );
+            return new VaultEntryPayload
+            {
+                WebsiteName = entry.WebsiteName ?? "",
+                Username = entry.Username ?? "",
+                Password = entry.Password ?? "",
+                Url = entry.Url ?? "",
+                Notes = entry.Notes ?? "",
+                Category = entry.Category ?? "",
+                IsFavorite = entry.IsFavorite
+            };
         }
 
         /// <summary>

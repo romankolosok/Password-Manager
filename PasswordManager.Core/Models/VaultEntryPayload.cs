@@ -5,15 +5,16 @@ namespace PasswordManager.Core.Models
     /// <summary>
     /// Payload stored in EncryptedData (JSON). Id, CreatedAt, UpdatedAt are stored in VaultEntryEntity.
     /// </summary>
-    internal record VaultEntryPayload(
-        string WebsiteName,
-        string Username,
-        string Password,
-        string Url,
-        string Notes,
-        string Category,
-        bool IsFavorite)
+    internal record VaultEntryPayload
     {
+        public required string WebsiteName { get; init; }
+        public required string Username { get; init; }
+        public required string Password { get; init; }
+        public string Url { get; init; } = string.Empty;
+        public string Notes { get; init; } = string.Empty;
+        public string Category { get; init; } = string.Empty;
+        public bool IsFavorite { get; init; }
+
         /// <summary>
         /// Serializes this payload to JSON.
         /// </summary>

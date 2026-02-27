@@ -11,7 +11,5 @@ namespace PasswordManager.Core.Services.Interfaces
         public Result<string> Decrypt(EncryptedBlob blob, byte[] key);
 
         public byte[] GenerateSalt();
-
-        public Result<string> GeneratePassword(PasswordOptions options);
     }
 }

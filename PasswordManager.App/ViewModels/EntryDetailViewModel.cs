@@ -9,7 +9,7 @@ namespace PasswordManager.App.ViewModels
     public partial class EntryDetailViewModel : ObservableObject
     {
         private readonly IVaultService _vaultService;
-        private readonly ICryptoService _cryptoService;
+        private readonly IPasswordGenerator _passwordGenerator;
         private readonly ISessionService _sessionService;
         private readonly IPasswordStrengthChecker _passwordStrengthChecker;
 
@@ -96,12 +96,12 @@ namespace PasswordManager.App.ViewModels
         public event EventHandler? Cancelled;
 
         public EntryDetailViewModel(IVaultService vaultService,
-            ICryptoService cryptoService,
+            IPasswordGenerator passwordGenerator,
             ISessionService sessionService,
             IPasswordStrengthChecker passwordStrengthChecker)
         {
             _vaultService = vaultService;
-            _cryptoService = cryptoService;
+            _passwordGenerator = passwordGenerator;
             _sessionService = sessionService;
             _passwordStrengthChecker = passwordStrengthChecker;
         }
@@ -214,7 +214,7 @@ namespace PasswordManager.App.ViewModels
                 IncludeSpecialCharacters = GeneratorIncludeSymbols
             };
 
-            Result<string> result = _cryptoService.GeneratePassword(options);
+            Result<string> result = _passwordGenerator.Generate(options);
             if (result.Success && result.Value != null)
             {
                 Password = result.Value;

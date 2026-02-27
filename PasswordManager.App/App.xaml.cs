@@ -54,6 +54,7 @@ namespace PasswordManager.App
             services.AddSingleton<IVaultRepository, VaultRepository>();
             services.AddSingleton<IVaultService, VaultService>();
             services.AddSingleton<IPasswordStrengthChecker, ZxcvbnPasswordStrengthChecker>();
+            services.AddSingleton<IPasswordGenerator, PasswordGenerator>();
 
             services.AddSingleton<IClipboardService, WpfClipboardService>();
             services.AddSingleton<IAuthCoordinator, AuthCoordinator>();

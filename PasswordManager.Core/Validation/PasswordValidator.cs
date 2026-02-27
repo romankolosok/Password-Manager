@@ -15,7 +15,7 @@ namespace PasswordManager.Core.Validators
     /// <summary>
     /// Validates password strength. Reusable for master password (register, login, change password),
     /// vault entry passwords, or any password that should match <see cref="PasswordPolicy"/> and
-    /// CryptoService.GeneratePassword output.
+    /// <see cref="T:PasswordManager.Core.Services.Interfaces.IPasswordGenerator"/> output.
     /// </summary>
     internal class PasswordValidator : AbstractValidator<PasswordInput>
     {

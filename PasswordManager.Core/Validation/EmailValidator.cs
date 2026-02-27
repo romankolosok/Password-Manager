@@ -1,4 +1,5 @@
 using FluentValidation;
+using System.Text.RegularExpressions;
 
 namespace PasswordManager.Core.Validators
 {
@@ -17,6 +18,9 @@ namespace PasswordManager.Core.Validators
     {
         private const int MaxEmailLength = 256;
 
+        private readonly Regex EmailRegex =
+            new Regex("^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$");
+
         public EmailValidator()
         {
             RuleFor(x => x.Email)
@@ -28,7 +32,7 @@ namespace PasswordManager.Core.Validators
                 .WithMessage($"Email must not exceed {MaxEmailLength} characters.");
 
             RuleFor(x => x.Email)
-                .EmailAddress()
+                .Matches(EmailRegex)
                 .WithMessage("Email must be a valid email address.")
                 .When(x => !string.IsNullOrEmpty(x.Email));
         }

@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-1. [Overview & Scope](#1-overview--scope)
+1. [Overview and Scope](#1-overview-and-scope)
 2. [Testing Infrastructure & Packages](#2-testing-infrastructure--packages)
 3. [Accessibility Changes Required](#3-accessibility-changes-required)
 4. [Testing Techniques Glossary & When to Use Each](#4-testing-techniques-glossary--when-to-use-each)
@@ -21,7 +21,7 @@
 
 ---
 
-## 1. Overview & Scope
+## 1. Overview and Scope
 
 This document provides a **detailed, per-component and per-method** testing strategy for the **PasswordManager.Core** library. For every class and method, we explain:
 
@@ -401,8 +401,6 @@ All validators use FluentValidation's `AbstractValidator<T>`. They are pure logi
 ---
 
 ### 5.3 Services
-
----
 
 #### 5.3.1 `CryptoService`
 
@@ -796,7 +794,7 @@ Flags: `IncludeUppercase (U)`, `IncludeLowercase (L)`, `IncludeDigits (D)`, `Inc
 
 Key boundaries across the codebase:
 
-| Parameter | Min | Min−1 | Max | Max+1 |
+| Parameter | Min | Min-1 | Max | Max+1 |
 |-----------|-----|-------|-----|-------|
 | Password length | 12 | 11 | 128 | 129 |
 | Encryption key size | 32 | 31 | 32 | 33 |

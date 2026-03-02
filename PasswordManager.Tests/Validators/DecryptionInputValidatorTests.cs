@@ -36,8 +36,9 @@ namespace PasswordManager.Tests.Validators
 
         public static IEnumerable<object[]> BlobsInvalidNonce()
         {
+            yield return new object[] { Blob(null!, new byte[] { 1, 2, 3 }, new byte[16]) };
             yield return new object[] { Blob(new byte[11], new byte[] { 1, 2, 3 }, new byte[16]) };
-            yield return new object[] { Blob(new byte[11], new byte[] { 1, 2, 3 }, new byte[16]) };
+            yield return new object[] { Blob(new byte[13], new byte[] { 1, 2, 3 }, new byte[16]) };
         }
 
         [Theory]
@@ -62,6 +63,7 @@ namespace PasswordManager.Tests.Validators
 
         public static IEnumerable<object[]> BlobsInvalidTag()
         {
+            yield return new object[] { Blob(new byte[12], new byte[] { 1, 2, 3 }, null!) };
             yield return new object[] { Blob(new byte[12], new byte[] { 1, 2, 3 }, new byte[15]) };
             yield return new object[] { Blob(new byte[12], new byte[] { 1, 2, 3 }, new byte[17]) };
         }

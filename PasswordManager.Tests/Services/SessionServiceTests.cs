@@ -93,6 +93,21 @@ namespace PasswordManager.Tests.Services
         }
 
         [Fact]
+        public void GetDerivedKeyReturnsCloneOfSetKey()
+        {
+            var key = new byte[32];
+            Array.Fill(key, (byte)0xAB);
+            _sessionService.SetDerivedKey(key);
+
+            var retrievedKey = _sessionService.GetDerivedKey();
+            retrievedKey[0] = 0xFF; // mutate the returned clone in-place
+
+            var retrievedKey2 = _sessionService.GetDerivedKey();
+
+            Assert.Equal(key, retrievedKey2);
+        }
+
+        [Fact]
         public void GetDerivedKeyThrowsWhenSessionIsInactive()
         {
             Assert.Throws<InvalidOperationException>(() => _sessionService.GetDerivedKey());
@@ -236,5 +251,98 @@ namespace PasswordManager.Tests.Services
             _sessionService.ClearSession();
             Assert.True(eventRaised);
         }
+
+        [Fact]
+        public void ClearSessionOnDisposedSessionDoesNotThrow()
+        {
+            _sessionService.Dispose();
+
+            var exception = Record.Exception(() => _sessionService.ClearSession());
+
+            Assert.Null(exception);
+        }
+
+        [Fact]
+        public void SessionIsnNotActiveOnCreation()
+        {
+            Assert.False(_sessionService.IsActive());
+        }
+
+        [Fact]
+        public void IsActiveThrowsWhenDisposed()
+        {
+            _sessionService.SetDerivedKey(new byte[32]);
+            _sessionService.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(() => _sessionService.IsActive());
+        }
+
+        [Fact]
+        public void ResetInactivityTimerResetsTimeout()
+        {
+            _sessionService.InactivityTimeout = TimeSpan.FromMilliseconds(200);
+            _sessionService.SetDerivedKey(new byte[32]);
+
+            Thread.Sleep(100);
+
+            _sessionService.ResetInactivityTimer();
+            Thread.Sleep(150);
+
+            Assert.True(_sessionService.IsActive());
+        }
+
+        [Fact]
+        public void ResetInactivityTimerThrowsWhenSessionDisposed()
+        {
+            _sessionService.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(() => _sessionService.ResetInactivityTimer());
+        }
+
+        [Fact]
+        public void InactivityTimeoutThrowsWhenSessionIsDisposed()
+        {
+            _sessionService.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(() => _sessionService.InactivityTimeout = TimeSpan.FromMinutes(1));
+        }
+
+        [Fact]
+        public void InactivityTimeoutGetterThrowsWhenSessionIsDisposed()
+        {
+            _sessionService.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(() => _ = _sessionService.InactivityTimeout);
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(1000)]
+        [InlineData(300000)]
+        public void InactivityTimeoutAcceptsPositiveValues(int milliseconds)
+        {
+            var timeout = TimeSpan.FromMilliseconds(milliseconds);
+
+            _sessionService.InactivityTimeout = timeout;
+
+            Assert.Equal(timeout, _sessionService.InactivityTimeout);
+        }
+
+        [Fact]
+        public void InactivityTimeoutThrowsForZero()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                _sessionService.InactivityTimeout = TimeSpan.Zero);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(-1000)]
+        public void InactivityTimeoutThrowsForNegativeValues(int milliseconds)
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                _sessionService.InactivityTimeout = TimeSpan.FromMilliseconds(milliseconds));
+        }
+
     }
 }

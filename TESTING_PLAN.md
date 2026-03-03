@@ -3,21 +3,22 @@
 ## Table of Contents
 
 1. [Overview and Scope](#1-overview-and-scope)
-2. [Testing Infrastructure & Packages](#2-testing-infrastructure--packages)
+2. [Testing Infrastructure and Packages](#2-testing-infrastructure-and-packages)
 3. [Accessibility Changes Required](#3-accessibility-changes-required)
-4. [Testing Techniques Glossary & When to Use Each](#4-testing-techniques-glossary--when-to-use-each)
+4. [Testing Techniques Glossary and When to Use Each](#4-testing-techniques-glossary-and-when-to-use-each)
 5. [Detailed Test Plan by Component](#5-detailed-test-plan-by-component)
    - 5.1 [Models](#51-models)
    - 5.2 [Validators](#52-validators)
-   - 5.3 [Services](#53-services)
-   - 5.4 [Extensions](#54-extensions)
-   - 5.5 [Exception Mapper](#55-exception-mapper)
+   - 5.3 [Services (Unit-Testable)](#53-services-unit-testable)
+   - 5.4 [Services (Integration — Local Supabase)](#54-services-integration--local-supabase)
+   - 5.5 [Extensions](#55-extensions)
+   - 5.6 [Exception Mapper](#56-exception-mapper)
 6. [Decision Tables](#6-decision-tables)
 7. [Equivalence Class Partitions](#7-equivalence-class-partitions)
 8. [OOP Testing Considerations](#8-oop-testing-considerations)
 9. [Additional Recommended Techniques](#9-additional-recommended-techniques)
-10. [Coverage Goals & Measurement](#10-coverage-goals--measurement)
-11. [Test Organisation & Naming Conventions](#11-test-organisation--naming-conventions)
+10. [Coverage Goals and Measurement](#10-coverage-goals-and-measurement)
+11. [Test Organisation and Naming Conventions](#11-test-organisation-and-naming-conventions)
 
 ---
 
@@ -26,8 +27,18 @@
 This document provides a **detailed, per-component and per-method** testing strategy for the **PasswordManager.Core** library. For every class and method, we explain:
 
 - **What to mock** and why
-- **What fixture to create** (shared setup via `IClassFixture<T>` or inline)
-- **Which testing technique** applies (unit test, equivalence class testing, decision table testing, boundary value analysis, state-based testing, slice testing) and **why it is the most appropriate** for that specific method
+- **What fixture to create** (shared setup via `IClassFixture<T>`, per-test helper, or integration fixture)
+- **Which testing technique** applies (unit test, equivalence class testing, decision table testing, boundary value analysis, state-based testing, slice testing, integration testing) and **why it is the most appropriate** for that specific method
+
+### Key Changes Since Previous Plan
+
+1. **`PasswordGenerator` extracted** — `GeneratePassword` was moved from `CryptoService` into a new `PasswordGenerator` class implementing `IPasswordGenerator`. `CryptoService` no longer has password generation.
+2. **Local Supabase via Docker** — A local Supabase stack (`supabase/config.toml`, migrations) now runs in Docker for CI and local dev. This enables **real integration tests** for `AuthService` and `VaultRepository`.
+3. **Custom email regex** — `EmailValidator` now uses a custom `Regex` instead of FluentValidation's built-in `EmailAddress()`.
+4. **`VaultEntryPayload` refactored to `required` init properties** — No longer a positional record constructor.
+5. **`ZxcvbnPasswordStrengthChecker` excluded from coverage** — Marked `[ExcludeFromCodeCoverage]` since it wraps a third-party library.
+6. **`Bogus` added for test data** — `TestData` class provides deterministic fake values.
+7. **Existing test infrastructure** — `CryptoServiceFixture`, `EncryptedBlobFixture`, `VaultServiceFixture` already created.
 
 ### Core Library Inventory
 
@@ -36,16 +47,16 @@ This document provides a **detailed, per-component and per-method** testing stra
 | **Models** | `Result`, `Result<T>`, `EncryptedBlob`, `PasswordOptions`, `VaultEntry`, `VaultEntryPayload`, `PasswordPolicy` | 7 |
 | **Entities** | `UserProfileEntity`, `VaultEntryEntity` | 2 |
 | **Validators** | `PasswordValidator`, `EmailValidator`, `EncryptionInputValidator`, `DecryptionInputValidator`, `PasswordOptionsValidator`, `EncryptedBlobFormatValidator` | 6 |
-| **Services** | `CryptoService`, `SessionService`, `VaultService`, `UserProfileService`, `AuthService`, `VaultRepository`, `ZxcvbnPasswordStrengthChecker` | 7 |
-| **Interfaces** | `ICryptoService`, `ISessionService`, `IVaultService`, `IAuthService`, `IVaultRepository`, `IUserProfileService`, `IPasswordStrengthChecker`, `IClipboardService` | 8 |
+| **Services (Interfaces)** | `ICryptoService`, `IPasswordGenerator`, `ISessionService`, `IAuthService`, `IVaultService`, `IVaultRepository`, `IUserProfileService`, `IPasswordStrengthChecker`, `IClipboardService` | 9 |
+| **Services (Implementations)** | `CryptoService`, `PasswordGenerator`, `SessionService`, `AuthService`, `VaultService`, `UserProfileService`, `VaultRepository`, `ZxcvbnPasswordStrengthChecker` | 8 |
 | **Extensions** | `VaultEntryExtensions` | 1 |
 | **Exceptions** | `SupabaseExceptionMapper` | 1 |
 
 ---
 
-## 2. Testing Infrastructure & Packages
+## 2. Testing Infrastructure and Packages
 
-### Already in `PasswordManager.Tests.csproj`
+### In `PasswordManager.Tests.csproj`
 
 | Package | Version | Purpose |
 |---------|---------|---------|
@@ -54,23 +65,26 @@ This document provides a **detailed, per-component and per-method** testing stra
 | `Microsoft.NET.Test.Sdk` | 17.9.0 | Test host |
 | `Moq` | 4.20.72 | Mocking interfaces for isolation |
 | `FluentAssertions` | 8.8.0 | Expressive assertions |
-| `coverlet.collector` | 6.0.0 | Code coverage collection (XPlat Code Coverage) |
+| `coverlet.msbuild` | 6.0.0 | MSBuild-integrated coverage with thresholds |
 | `JunitXml.TestLogger` | 8.0.0 | JUnit XML output for Jenkins |
+| `Bogus` | 35.6.5 | Deterministic fake data generation |
 
-### Recommended Additions
+### Test Data Infrastructure
 
-| Package | Purpose | Why |
-|---------|---------|-----|
-| `coverlet.msbuild` | MSBuild-integrated coverage with thresholds (`/p:Threshold=80`) | Can fail builds when coverage drops below target |
-| `ReportGenerator` (global tool) | Converts Cobertura XML → HTML reports | `dotnet tool install -g dotnet-reportgenerator-globaltool` |
+**`TestData` (static class)** — Central source of deterministic fake values (seeded with `Seed = 121`). Provides `Email()`, `Username()`, `Password()`, `AccessToken()`, `WebsiteName()`, `Url()`, `Notes()`, `Category()`, `DerivedKey()`, `UserId()`. All tests should use `TestData` for consistency.
 
-No other packages are needed. The existing stack (xUnit + Moq + FluentAssertions + Coverlet) is industry-standard for .NET unit testing.
+### Local Supabase Stack
+
+For integration tests (`AuthService`, `VaultRepository`), a local Supabase runs in Docker:
+- **`supabase/config.toml`** — Project config with `enable_confirmations = false` (instant signup without email verification)
+- **`supabase/migrations/`** — Schema with `UserProfiles`, `VaultEntries` tables, RLS policies, and `handle_new_user_profile` trigger
+- **CI workflow** — Jenkins runs `supabase start`, `supabase db reset`, exports `Supabase__Url`, `Supabase__AnonKey`, `Supabase__ServiceRoleKey` environment variables
 
 ---
 
 ## 3. Accessibility Changes Required
 
-Several classes are `internal`. To test them directly, the Core project already has:
+The Core project has:
 
 ```xml
 <!-- PasswordManager.Core.csproj -->
@@ -96,16 +110,17 @@ This exposes to the test project:
 
 ---
 
-## 4. Testing Techniques Glossary & When to Use Each
+## 4. Testing Techniques Glossary and When to Use Each
 
 | Technique | Description | When to Use |
 |-----------|-------------|-------------|
 | **Unit Testing** | Test a single method in isolation; mock all external dependencies | Every method in the library — the foundation of the strategy |
 | **Equivalence Class Testing (ECT)** | Partition inputs into classes of values that should be treated identically, then test one representative from each class | Validators (password, email, key sizes), inputs with clear valid/invalid domains |
 | **Boundary Value Analysis (BVA)** | Test at the exact edges of equivalence classes (min, min-1, max, max+1) | Numeric constraints (password length 12/128, key size 32, email length 256) |
-| **Decision Table Testing** | Enumerate all combinations of boolean conditions and their expected outcomes | `PasswordOptions` (5 boolean flags), `SupabaseExceptionMapper` (exception type × status code), `GeneratePassword` (flag combinations) |
-| **State-Based Testing** | Test object lifecycle through state transitions (Created → Active → Locked → Disposed) | `SessionService` — the only stateful service with clear lifecycle states |
-| **Slice Testing** | Test a vertical slice through multiple layers without mocking to verify integration | `CryptoService.Encrypt` → `EncryptedBlob.ToBase64String` → `FromBase64String` → `CryptoService.Decrypt` round-trip; `VaultEntry` → `ToPayload` → `ToJson` → `FromJson` → `ToVaultEntry` |
+| **Decision Table Testing** | Enumerate all combinations of boolean conditions and their expected outcomes | `PasswordOptions` (5 boolean flags), `SupabaseExceptionMapper` (exception type x status code), `PasswordGenerator.Generate` (flag combinations) |
+| **State-Based Testing** | Test object lifecycle through state transitions (Created -> Active -> Locked -> Disposed) | `SessionService` — the only stateful service with clear lifecycle states |
+| **Slice Testing** | Test a vertical slice through multiple layers without mocking to verify integration | `CryptoService.Encrypt` -> `EncryptedBlob.ToBase64String` -> `FromBase64String` -> `CryptoService.Decrypt` round-trip |
+| **Integration Testing** | Test against a real external system (local Supabase Docker) | `AuthService` (real Supabase Auth), `VaultRepository` (real Supabase Postgrest) |
 | **OOP Testing** | Test inheritance hierarchies, interface contracts, polymorphism, `IDisposable` pattern | `Result`/`Result<T>` inheritance, `SessionService` `IDisposable`, entity `BaseModel` inheritance |
 
 ---
@@ -135,7 +150,7 @@ This exposes to the test project:
 | `Result.Ok()` | **Unit test** | Simple factory. Just verify `Success = true` and `Message = ""`. No input variations to partition. |
 | `Result.Fail(string)` | **Unit test + Equivalence class** | Test one representative from each class: a normal message, an empty string `""`, and a very long message. The method is a simple factory, but the message parameter has distinct input classes. |
 | `Result<T>.Ok(T)` | **Unit test** | Verify `Success = true`, `Value` equals the passed data, `Message = ""`. Use several types for `T` (int, string, complex object) to verify generic behaviour. |
-| `Result<T>.Fail(string)` | **Unit test** | Verify `Success = false`, `Value = default(T)`, `Message` set correctly. Test with value types (int → 0) and reference types (string → null) to cover both default behaviours. |
+| `Result<T>.Fail(string)` | **Unit test** | Verify `Success = false`, `Value = default(T)`, `Message` set correctly. Test with value types (int -> 0) and reference types (string -> null) to cover both default behaviours. |
 | Polymorphism: `Result<T>` is-a `Result` | **OOP test** | Assign `Result<int>` to a `Result` variable and verify `Success`/`Message` are accessible. This tests that the inheritance is working correctly at runtime. |
 
 ---
@@ -144,19 +159,19 @@ This exposes to the test project:
 
 **File:** `Models/EncryptedBlob.cs`
 
-**What to mock:** Nothing — `EncryptedBlob` is a model class. Internally it creates an `EncryptedBlobFormatValidator`, but that is part of the unit under test (the validator is a collaborator, not an external dependency, and we want to test the integration).
+**What to mock:** Nothing — `EncryptedBlob` is a model class. Internally it creates an `EncryptedBlobFormatValidator`, but that is part of the unit under test.
 
-**Fixture:** None needed. Each test constructs its own blob.
+**Fixture:** **`EncryptedBlobFixture` (already exists as `IClassFixture<EncryptedBlobFixture>`).**
 
-**Why no fixture:** Object construction is trivial (just byte arrays). No database, no network, no slow setup.
+**Why a fixture:** The fixture pre-constructs several blob scenarios (standard blob, minimum valid base64, large valid base64, invalid base64, boundary 27-byte blob) that are reused across multiple test methods. This avoids repetitive setup in each test and keeps test code focused on assertions.
 
 ##### Method-by-Method Strategy
 
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
-| `ToBase64String()` | **Unit test** | Verify that concatenation of Nonce + Ciphertext + Tag is correctly base64-encoded. Deterministic output for deterministic input. |
-| `FromBase64String(string)` | **Equivalence class + Boundary value** | The input string falls into distinct classes: (1) null, (2) empty, (3) non-base64 garbage, (4) valid base64 but too short (< 28 bytes decoded), (5) valid base64 exactly 28 bytes (boundary — nonce + tag, zero-length ciphertext), (6) valid base64 with ciphertext. Each class has different expected behaviour. Boundary at 27 vs 28 bytes is critical. |
-| Round-trip: `ToBase64String` → `FromBase64String` | **Slice test** | This is a vertical slice through two methods. Construct a blob, serialise, deserialise, verify all three arrays match. This catches encoding/decoding inconsistencies that per-method tests might miss. |
+| `ToBase64String()` | **Unit test** | Verify that concatenation of Nonce + Ciphertext + Tag is correctly base64-encoded. Deterministic output for deterministic input. Uses fixture's `StandardBlob`. |
+| `FromBase64String(string)` | **Equivalence class + Boundary value** | The input string falls into distinct classes: (1) null, (2) empty, (3) non-base64 garbage, (4) valid base64 but too short (< 28 bytes decoded), (5) valid base64 exactly 28 bytes (boundary — nonce + tag, zero-length ciphertext), (6) valid base64 with ciphertext. Each class has different expected behaviour. Boundary at 27 vs 28 bytes is critical. Uses fixture's pre-built test cases. |
+| Round-trip: `ToBase64String` -> `FromBase64String` | **Slice test** | This is a vertical slice through two methods. Construct a blob, serialise, deserialise, verify all three arrays match. Catches encoding/decoding inconsistencies that per-method tests might miss. |
 
 ---
 
@@ -174,8 +189,8 @@ This exposes to the test project:
 
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
-| Default constructor | **Unit test** | Verify defaults: `Length = 20`, `IncludeUppercase = true`, `IncludeLowercase = true`, `IncludeDigits = true`, `IncludeSpecialCharacters = true`, `ExcludeAmbiguousCharacters = false`. This is a single deterministic check. |
-| Property setters | **Unit test** | Verify each property can be set and read back. Trivial but ensures the POCO works. |
+| Default constructor | **Unit test** | Verify defaults: `Length = 20`, `IncludeUppercase = true`, `IncludeLowercase = true`, `IncludeDigits = true`, `IncludeSpecialCharacters = true`, `ExcludeAmbiguousCharacters = false`. Single deterministic check. |
+| Property setters | **Unit test** | Verify each property can be set and read back. |
 
 ---
 
@@ -192,7 +207,7 @@ This exposes to the test project:
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
 | Default constructor | **Unit test** | Verify `Id` is a non-empty Guid, strings default to `string.Empty`, `IsFavorite = false`. |
-| `Id` is init-only | **OOP test** | Verify immutability — attempting to set `Id` after construction should be prevented by the `init` accessor (compile-time, but can verify at design level). |
+| `Id` is init-only | **OOP test** | Verify immutability — `Id` uses `init` accessor. |
 
 ---
 
@@ -204,15 +219,15 @@ This exposes to the test project:
 
 **Fixture:** None.
 
-**Why this needs testing:** It is the data contract for encrypted storage. Incorrect serialisation means data loss.
+**Why this needs testing:** It is the data contract for encrypted storage. Incorrect serialisation means data loss. Note: `VaultEntryPayload` was refactored from a positional record to use `required init` properties.
 
 ##### Method-by-Method Strategy
 
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
 | `ToJson()` | **Unit test** | Create a known payload, serialise, verify JSON contains expected fields. Deterministic. |
-| `FromJson(string)` | **Equivalence class** | Input classes: (1) valid JSON matching the record shape, (2) `null`, (3) empty string `""`, (4) invalid JSON `"{ broken"`, (5) valid JSON but wrong shape (missing fields). Each class triggers a different code path (success vs `catch → null`). |
-| Round-trip: `ToJson()` → `FromJson()` | **Slice test** | Serialise then deserialise. Verify all 7 fields survive the round-trip. This catches JSON property naming mismatches that per-method tests would miss. |
+| `FromJson(string)` | **Equivalence class** | Input classes: (1) valid JSON matching the record shape, (2) `null`, (3) empty string `""`, (4) invalid JSON `"{ broken"`, (5) valid JSON but wrong shape (missing fields). Each class triggers a different code path (success vs `catch -> null`). |
+| Round-trip: `ToJson()` -> `FromJson()` | **Slice test** | Serialise then deserialise. Verify all 7 fields survive the round-trip. Catches JSON property naming mismatches. |
 
 ---
 
@@ -228,7 +243,7 @@ This exposes to the test project:
 
 | Test | Technique | Reasoning |
 |------|-----------|-----------|
-| Constants match expected values | **Unit test** | Verify `MinLength = 12`, `MaxLength = 128`, `SpecialCharacters` is the expected string. These are the contract other validators depend on. If someone changes them, tests should catch it. |
+| Constants match expected values | **Unit test** | Verify `MinLength = 12`, `MaxLength = 128`, `SpecialCharacters` is the expected string. These are the contract other validators depend on. |
 
 ---
 
@@ -237,8 +252,8 @@ This exposes to the test project:
 All validators use FluentValidation's `AbstractValidator<T>`. They are pure logic with no external dependencies.
 
 **General approach for all validators:**
-- **What to mock:** Nothing — validators are pure functions (input → validation result).
-- **Fixture:** None — validators are cheap to construct (`new PasswordValidator()`).
+- **What to mock:** Nothing — validators are pure functions (input -> validation result).
+- **Fixture:** None — validators are cheap to construct.
 - **Primary technique:** Equivalence class testing + boundary value analysis, because validators are classifiers — they partition the input domain into "valid" and "invalid" regions, making ECT the natural fit.
 - **Why ECT is the best fit for validators:** A validator's job is literally to classify inputs. Equivalence classes map directly onto the validation rules. Each rule defines a partition boundary.
 
@@ -251,7 +266,9 @@ All validators use FluentValidation's `AbstractValidator<T>`. They are pure logi
 **What to mock:** Nothing.
 **Fixture:** None.
 
-**Reasoning for strategy choice:** The password validator has 7 rules (not-empty, min length, max length, has uppercase, has lowercase, has digit, has special char). Some rules have `.When()` conditions (character type rules only fire when length ≥ MinLength). This creates a rich input domain best covered by **equivalence class testing** for the main partitions and **boundary value analysis** for the length constraints.
+**Reasoning for strategy choice:** The password validator has 7 rules (not-empty, min length, max length, has uppercase, has lowercase, has digit, has special char). Some rules have `.When()` conditions (character type rules only fire when length >= MinLength). This creates a rich input domain best covered by **equivalence class testing** for the main partitions and **boundary value analysis** for the length constraints.
+
+Note: Private helper methods (`ContainsUppercase`, `ContainsLowercase`, `ContainsDigit`, `ContainsSpecialCharacter`) are marked `[ExcludeFromCodeCoverage]` since they are simple LINQ one-liners.
 
 ##### Method: `Validate(PasswordInput)`
 
@@ -259,15 +276,15 @@ All validators use FluentValidation's `AbstractValidator<T>`. They are pure logi
 
 | # | Class | Representative | Expected | Why this class |
 |---|-------|---------------|----------|----------------|
-| 1 | Empty / null | `""` | Invalid – "cannot be empty" | First rule fires, short-circuits other checks |
-| 2 | Too short (1–11 chars), all types present | `"Ab1!cdefgh"` (10 chars) | Invalid – min length | `.When()` prevents character-type rules from firing, so only length error |
+| 1 | Empty / null | `""` | Invalid - "cannot be empty" | First rule fires |
+| 2 | Too short (1-11 chars), all types present | `"Ab1!cdefgh"` (10 chars) | Invalid - min length | `.When()` prevents character-type rules from firing |
 | 3 | At minimum length (12), all types present | `"Abcdefgh1!xy"` | Valid | Exact boundary of the min-length rule |
-| 4 | Missing uppercase (12+ chars) | `"abcdefgh1!xy"` | Invalid – "must contain uppercase" | Character-type rule fires because length condition met |
-| 5 | Missing lowercase (12+ chars) | `"ABCDEFGH1!XY"` | Invalid – "must contain lowercase" | Same reasoning |
-| 6 | Missing digit (12+ chars) | `"Abcdefghij!x"` | Invalid – "must contain digit" | Same reasoning |
-| 7 | Missing special char (12+ chars) | `"Abcdefghij1x"` | Invalid – "must contain special" | Same reasoning |
-| 8 | At max length (128), all types present | 128-char valid string | Valid | Exact boundary of max-length rule |
-| 9 | Over max length (129) | 129-char string | Invalid – "must not exceed 128" | Above max-length boundary |
+| 4 | Missing uppercase (12+ chars) | `"abcdefgh1!xy"` | Invalid - "must contain uppercase" | Character-type rule fires |
+| 5 | Missing lowercase (12+ chars) | `"ABCDEFGH1!XY"` | Invalid - "must contain lowercase" | Same reasoning |
+| 6 | Missing digit (12+ chars) | `"Abcdefghij!x"` | Invalid - "must contain digit" | Same reasoning |
+| 7 | Missing special char (12+ chars) | `"Abcdefghij1x"` | Invalid - "must contain special" | Same reasoning |
+| 8 | At max length (128), all types present | 128-char valid string | Valid | Exact boundary |
+| 9 | Over max length (129) | 129-char string | Invalid - "must not exceed 128" | Above boundary |
 
 **Boundary values for length:** `0`, `1`, `11`, `12`, `128`, `129`
 
@@ -280,7 +297,7 @@ All validators use FluentValidation's `AbstractValidator<T>`. They are pure logi
 **What to mock:** Nothing.
 **Fixture:** None.
 
-**Reasoning:** Like `PasswordValidator`, this is a classifier with 3 rules: not-empty, max-length, email format. ECT + BVA covers it well.
+**Reasoning:** Like `PasswordValidator`, this is a classifier with 3 rules: not-empty, max-length, and now a **custom regex** (instead of FluentValidation's built-in `EmailAddress()`). The custom regex `^[a-z0-9!#$%&'*+/=?^_`{|}~-]+...` is case-sensitive (lowercase only in pattern). ECT + BVA covers it well.
 
 ##### Method: `Validate(EmailInput)`
 
@@ -288,13 +305,15 @@ All validators use FluentValidation's `AbstractValidator<T>`. They are pure logi
 
 | # | Class | Representative | Expected | Why this class |
 |---|-------|---------------|----------|----------------|
-| 1 | Empty / null | `""` | Invalid – "cannot be empty" | First rule |
+| 1 | Empty / null | `""` | Invalid - "cannot be empty" | First rule |
 | 2 | Valid standard email | `"user@example.com"` | Valid | Happy path |
 | 3 | Valid minimal email | `"a@b.co"` | Valid | Shortest plausible valid email |
-| 4 | Missing `@` | `"userexample.com"` | Invalid – format | Format rule |
-| 5 | Missing domain | `"user@"` | Invalid – format | Format rule |
+| 4 | Missing `@` | `"userexample.com"` | Invalid - format | Regex rule |
+| 5 | Missing domain | `"user@"` | Invalid - format | Regex rule |
 | 6 | At max length (256 chars) | 256-char valid email | Valid | Max boundary |
-| 7 | Over max length (257 chars) | 257-char email | Invalid – exceeds 256 | Above boundary |
+| 7 | Over max length (257 chars) | 257-char email | Invalid - exceeds 256 | Above boundary |
+| 8 | Uppercase letters in local part | `"User@example.com"` | Invalid - regex is lowercase-only | New custom regex behaviour |
+| 9 | Double dot in local part | `"user..name@example.com"` | Invalid - regex disallows | Regex edge case |
 
 **Boundary values for length:** `0`, `1`, `256`, `257`
 
@@ -307,20 +326,18 @@ All validators use FluentValidation's `AbstractValidator<T>`. They are pure logi
 **What to mock:** Nothing.
 **Fixture:** None.
 
-**Reasoning:** Two independent rules (plaintext not-empty, key exactly 32 bytes) create a simple 2-condition decision table, but since each condition is independent, ECT per-condition is sufficient without a full decision table.
+**Reasoning:** Two independent rules (plaintext not-empty, key exactly 32 bytes). ECT per-condition is sufficient.
 
 ##### Method: `Validate(EncryptionInput)`
-
-**Equivalence classes:**
 
 | # | Class | Representative | Expected | Why |
 |---|-------|---------------|----------|-----|
 | 1 | Valid: non-empty plaintext + 32-byte key | `("hello", new byte[32])` | Valid | Happy path |
-| 2 | Empty plaintext | `("", new byte[32])` | Invalid – "Plaintext cannot be null or empty" | Empty string partition |
-| 3 | Null key | `("hello", null)` | Invalid – "key cannot be null" | Null partition |
-| 4 | Key too short (31 bytes) | `("hello", new byte[31])` | Invalid – "key must be 32 bytes" | Boundary -1 |
-| 5 | Key too long (33 bytes) | `("hello", new byte[33])` | Invalid – "key must be 32 bytes" | Boundary +1 |
-| 6 | Key empty (0 bytes) | `("hello", new byte[0])` | Invalid – "key must be 32 bytes" | Edge |
+| 2 | Empty plaintext | `("", new byte[32])` | Invalid | Empty string partition |
+| 3 | Null key | `("hello", null)` | Invalid | Null partition |
+| 4 | Key too short (31 bytes) | `("hello", new byte[31])` | Invalid | Boundary -1 |
+| 5 | Key too long (33 bytes) | `("hello", new byte[33])` | Invalid | Boundary +1 |
+| 6 | Key empty (0 bytes) | `("hello", new byte[0])` | Invalid | Edge |
 
 ---
 
@@ -331,23 +348,21 @@ All validators use FluentValidation's `AbstractValidator<T>`. They are pure logi
 **What to mock:** Nothing.
 **Fixture:** None.
 
-**Reasoning:** More conditions (blob not null, nonce 12 bytes, ciphertext not empty, tag 16 bytes, key 32 bytes), but they are still independent conditions. ECT per-condition covers the domain well. BVA at the exact byte sizes catches off-by-one errors.
+**Reasoning:** More conditions (blob not null, nonce 12 bytes, ciphertext not empty, tag 16 bytes, key 32 bytes), but still independent. ECT per-condition + BVA at byte sizes.
 
 ##### Method: `Validate(DecryptionInput)`
-
-**Equivalence classes:**
 
 | # | Class | Expected | Why |
 |---|-------|----------|-----|
 | 1 | All valid (12-byte nonce, non-empty ciphertext, 16-byte tag, 32-byte key) | Valid | Happy path |
-| 2 | Null blob | Invalid – "blob cannot be null" | Null partition |
-| 3 | Nonce = 11 bytes | Invalid – "Nonce must be 12 bytes" | BVA: min - 1 |
-| 4 | Nonce = 13 bytes | Invalid – "Nonce must be 12 bytes" | BVA: min + 1 |
-| 5 | Empty ciphertext | Invalid – "Ciphertext cannot be empty" | Empty partition |
-| 6 | Tag = 15 bytes | Invalid – "Tag must be 16 bytes" | BVA: min - 1 |
-| 7 | Tag = 17 bytes | Invalid – "Tag must be 16 bytes" | BVA: min + 1 |
-| 8 | Key = 31 bytes | Invalid – "key must be 32 bytes" | BVA: min - 1 |
-| 9 | Key = 33 bytes | Invalid – "key must be 32 bytes" | BVA: min + 1 |
+| 2 | Null blob | Invalid | Null partition |
+| 3 | Nonce = 11 bytes | Invalid | BVA: min - 1 |
+| 4 | Nonce = 13 bytes | Invalid | BVA: min + 1 |
+| 5 | Empty ciphertext | Invalid | Empty partition |
+| 6 | Tag = 15 bytes | Invalid | BVA: min - 1 |
+| 7 | Tag = 17 bytes | Invalid | BVA: min + 1 |
+| 8 | Key = 31 bytes | Invalid | BVA: min - 1 |
+| 9 | Key = 33 bytes | Invalid | BVA: min + 1 |
 
 ---
 
@@ -358,19 +373,19 @@ All validators use FluentValidation's `AbstractValidator<T>`. They are pure logi
 **What to mock:** Nothing.
 **Fixture:** None.
 
-**Reasoning:** This validator has 2 rules: (1) `Length` in `[12, 128]` and (2) at least one character set selected. The character set check is a boolean OR of 4 flags. This makes it a natural fit for a **decision table** — the combination of Length validity × character-set selection creates a small truth table.
+**Reasoning:** 2 rules: (1) `Length` in `[12, 128]` and (2) at least one character set selected. The character set check is a boolean OR of 4 flags — a natural **decision table**.
 
 ##### Method: `Validate(PasswordOptions)`
 
 **Decision table** (see [Section 6.1](#61-passwordoptionsvalidator)):
 
-| Rule | Length valid? | ≥ 1 char type? | Expected |
+| Rule | Length valid? | >= 1 char type? | Expected |
 |------|-------------|---------------|----------|
 | R1 | Yes | Yes | Valid |
-| R2 | Yes | No (all false) | Invalid – "at least one character set" |
-| R3 | No (< 12) | Yes | Invalid – "length must be between" |
-| R4 | No (> 128) | Yes | Invalid – "length must be between" |
-| R5 | No | No | Invalid – both errors |
+| R2 | Yes | No (all false) | Invalid |
+| R3 | No (< 12) | Yes | Invalid |
+| R4 | No (> 128) | Yes | Invalid |
+| R5 | No | No | Invalid - both errors |
 
 **Length boundary values:** `11` (below min), `12` (at min), `128` (at max), `129` (above max), `0`, `-1`
 
@@ -383,226 +398,295 @@ All validators use FluentValidation's `AbstractValidator<T>`. They are pure logi
 **What to mock:** Nothing.
 **Fixture:** None.
 
-**Reasoning:** Single validation with a helper method. The input is a base64 string that decodes to a blob. Natural fit for ECT because there are distinct input categories.
-
 ##### Method: `Validate(EncryptedBlobParseInput)`
-
-**Equivalence classes:**
 
 | # | Class | Representative | Expected | Why |
 |---|-------|---------------|----------|-----|
-| 1 | Empty string | `""` | Invalid – "cannot be empty" | Empty partition |
-| 2 | Null | `null` | Invalid – "cannot be empty" | Null partition |
-| 3 | Non-base64 garbage | `"%%%not-base64"` | Invalid – "Invalid format" | Format partition |
-| 4 | Valid base64, < 28 bytes decoded | base64 of 27-byte array | Invalid – "at least nonce + tag" | Boundary - 1 |
+| 1 | Empty string | `""` | Invalid | Empty partition |
+| 2 | Null | `null` | Invalid | Null partition |
+| 3 | Non-base64 garbage | `"%%%not-base64"` | Invalid | Format partition |
+| 4 | Valid base64, < 28 bytes decoded | base64 of 27-byte array | Invalid | Boundary - 1 |
 | 5 | Valid base64, = 28 bytes decoded | base64 of 28-byte array | Valid | Boundary (minimum valid) |
 | 6 | Valid base64, > 28 bytes decoded | base64 of 100-byte array | Valid | Normal valid partition |
 
 ---
 
-### 5.3 Services
+### 5.3 Services (Unit-Testable)
+
+---
 
 #### 5.3.1 `CryptoService`
 
 **File:** `Services/Implementations/CryptoService.cs`
 
-**What to mock:** Nothing — `CryptoService` is self-contained. It uses real cryptographic algorithms (Argon2id, AES-256-GCM) and internal validators. We test the real implementation because:
-1. Mocking crypto would defeat the purpose — we need to verify real encryption/decryption works.
-2. Validators are internal collaborators, not external dependencies to isolate.
+**What to mock:** Nothing — `CryptoService` is self-contained. It uses real cryptographic algorithms (Argon2id, AES-256-GCM) and internal validators.
 
-**Fixture: `CryptoServiceFixture` (recommended as `IClassFixture<CryptoServiceFixture>`)**
+**Why no mocking:** Mocking crypto would defeat the purpose — we need to verify real encryption/decryption works. Validators are internal collaborators, not external dependencies.
 
-**Why a fixture:** `CryptoService` is stateless but its construction triggers validator instantiation. More importantly, `DeriveKey` is computationally expensive (Argon2 with 64 MB memory). A shared fixture with a pre-computed key avoids repeating the ~500ms key derivation in every test that needs an encryption key. The fixture provides:
+**Fixture: `CryptoServiceFixture` (already exists as `IClassFixture<CryptoServiceFixture>`)**
+
+**Why a fixture:** `DeriveKey` is computationally expensive (Argon2 with 64 MB memory, ~500ms). The fixture provides:
 - A shared `CryptoService` instance
-- A pre-derived 32-byte key (from a known password + salt)
-- The known password and salt used to derive it
+- A pre-derived 32-byte key (from `KnownPassword` + random `Salt`)
+- Saves ~500ms per test that needs an encryption key
 
-**Why stateless service still benefits from a fixture:** Even though `CryptoService` has no mutable state, the Argon2 key derivation is expensive. A fixture amortises this cost across all tests in the class.
+**Why stateless service benefits from a fixture:** Even though `CryptoService` has no mutable state, the Argon2 key derivation is expensive. A fixture amortises this cost across all tests.
+
+**Note:** `GeneratePassword` was removed from `CryptoService` and moved to `PasswordGenerator`. `CryptoService` now has 4 methods.
 
 ##### Method-by-Method Strategy
 
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
-| **`DeriveKey(string, byte[])`** | **Unit test** | (1) Returns exactly 32 bytes for any input. (2) Same password + salt → same key (determinism). (3) Different passwords → different keys. (4) Different salts → different keys. These are functional properties of a deterministic algorithm — straightforward unit tests. |
-| **`Encrypt(string, byte[])`** | **Equivalence class + Unit test** | Inputs partition into: (1) valid plaintext + valid key → success result with blob, (2) empty/null plaintext → fail (via validator), (3) wrong key size → fail (via validator). The valid path also has a randomness property to verify (two encryptions of the same plaintext produce different nonces). |
-| **`Decrypt(EncryptedBlob, byte[])`** | **Equivalence class + Unit test** | Inputs partition into: (1) correct blob + correct key → success, (2) wrong key → fail (AES-GCM auth failure), (3) tampered ciphertext → fail, (4) tampered tag → fail, (5) tampered nonce → fail, (6) null blob → fail (via validator), (7) wrong key size → fail (via validator). |
-| **`Encrypt` → `Decrypt` round-trip** | **Slice test** | This is the most important test for `CryptoService`. It tests a vertical slice: encrypt plaintext → get blob → decrypt blob → get plaintext back. It catches integration issues between encrypt and decrypt that per-method tests miss (e.g., nonce/tag ordering). |
-| **`GenerateSalt()`** | **Unit test** | Verify: (1) returns 16 bytes, (2) two calls produce different values (randomness). Simple property checks. |
-| **`GeneratePassword(PasswordOptions)`** | **Decision table + ECT + BVA** | The method takes `PasswordOptions` with 5 booleans + 1 int. This is a combinatorial input space. A **decision table** is the right tool for the boolean flags (see Section 6.2). **BVA** applies to the length parameter (11, 12, 128, 129). **ECT** applies to the ExcludeAmbiguous flag (verify no ambiguous chars when true). |
+| **`DeriveKey(string, byte[])`** | **Unit test** | (1) Returns exactly 32 bytes. (2) Same password + salt -> same key (determinism). (3) Different passwords -> different keys. (4) Different salts -> different keys. Functional properties of a deterministic algorithm. |
+| **`Encrypt(string, byte[])`** | **Equivalence class + Unit test** | Inputs partition into: (1) valid plaintext + valid key -> success with blob, (2) empty/null plaintext -> fail (via validator), (3) wrong key size -> fail (via validator). Also verify randomness: two encryptions of the same plaintext produce different nonces. |
+| **`Decrypt(EncryptedBlob, byte[])`** | **Equivalence class + Unit test** | Inputs partition into: (1) correct blob + correct key -> success, (2) wrong key -> fail (AES-GCM auth failure), (3) tampered ciphertext -> fail, (4) tampered tag -> fail, (5) tampered nonce -> fail, (6) null blob -> fail (via validator), (7) wrong key size -> fail. |
+| **`Encrypt` -> `Decrypt` round-trip** | **Slice test** | The most important test. Encrypt plaintext -> get blob -> decrypt blob -> get plaintext back. Catches nonce/tag ordering issues. |
+| **`GenerateSalt()`** | **Unit test** | Verify: (1) returns 16 bytes, (2) two calls produce different values (randomness). |
 
-##### `GeneratePassword` — detailed test cases
+---
+
+#### 5.3.2 `PasswordGenerator`
+
+**File:** `Services/Implementations/PasswordGenerator.cs`
+
+**What to mock:** Nothing — self-contained. Uses `PasswordOptionsValidator` internally (tested as part of the unit).
+
+**Fixture:** None needed — construction is trivial (just a validator instantiation).
+
+**Why no fixture:** `PasswordGenerator` is stateless and cheap to construct. Unlike `CryptoService`, there is no expensive one-time setup.
+
+**Reasoning for strategy:** The method takes `PasswordOptions` with 5 booleans + 1 int. This is a combinatorial input space. A **decision table** is the right tool for the boolean flags. **BVA** applies to the length parameter. **ECT** applies to the ExcludeAmbiguous flag.
+
+##### Method: `Generate(PasswordOptions)`
+
+**Decision table** (see [Section 6.2](#62-passwordgeneratorgenerate)):
 
 | # | Test | Technique | Why |
 |---|------|-----------|-----|
-| 1 | Default options → length 20, contains upper + lower + digit + special | Unit | Happy path |
+| 1 | Default options -> length 20, contains upper + lower + digit + special | Unit | Happy path |
 | 2 | Length = 12 (min boundary) | BVA | Boundary |
 | 3 | Length = 128 (max boundary) | BVA | Boundary |
-| 4 | Length = 11 → Fail | BVA | Below boundary |
-| 5 | Length = 129 → Fail | BVA | Above boundary |
+| 4 | Length = 11 -> Fail | BVA | Below boundary |
+| 5 | Length = 129 -> Fail | BVA | Above boundary |
 | 6 | Only uppercase = true, rest false | Decision table | Single character set |
 | 7 | Only lowercase = true | Decision table | Single character set |
 | 8 | Only digits = true | Decision table | Single character set |
 | 9 | Only special = true | Decision table | Single character set |
-| 10 | All flags false → Fail | Decision table | No character set |
-| 11 | All true + ExcludeAmbiguous → no ambiguous chars | Decision table + ECT | Ambiguous exclusion |
-| 12 | Run 10 times → all results are unique (randomness) | Unit | Statistical property |
+| 10 | All flags false -> Fail | Decision table | No character set |
+| 11 | All true + ExcludeAmbiguous -> no ambiguous chars | Decision table + ECT | Ambiguous exclusion |
+| 12 | Run 10 times -> all results are unique (randomness) | Unit | Statistical property |
 
 ---
 
-#### 5.3.2 `SessionService`
+#### 5.3.3 `SessionService`
 
 **File:** `Services/Implementations/SessionService.cs`
 
-**What to mock:** Nothing — `SessionService` is self-contained. It uses only `System.Timers.Timer` internally.
+**What to mock:** Nothing — self-contained. Uses only `System.Timers.Timer`.
 
-**Fixture:** None (but use `IDisposable` on the test class to dispose the `SessionService` after each test).
+**Fixture:** None (use `IDisposable` on the test class to dispose after each test).
 
-**Why no shared fixture:** `SessionService` is **stateful** — it has mutable internal state (`_derivedKey`, `_currentUserId`, `_disposed`, etc.). Each test must start with a **fresh instance** to avoid test coupling. If tests shared a fixture, one test's `ClearSession()` or `Dispose()` would corrupt another test's state. Instead, each test creates its own `SessionService` and disposes it.
+**Why no shared fixture:** `SessionService` is **stateful** — mutable internal state (`_derivedKey`, `_currentUserId`, `_disposed`). Each test must start with a **fresh instance** to avoid coupling. If tests shared a fixture, one test's `ClearSession()` would corrupt another.
 
-**Reasoning for strategy choice:** `SessionService` has a clear **state machine**:
+**Reasoning for strategy:** `SessionService` has a clear **state machine**:
 ```
-[Created] → SetDerivedKey → [Active] → ClearSession → [Locked]
-                                ↓                        ↓
-                            Dispose →  [Disposed]  ←  Dispose
+[Created] --SetDerivedKey--> [Active] --ClearSession--> [Locked]
+                                |                          |
+                                +---Dispose--> [Disposed] <+
 ```
-This makes **state-based testing** the primary technique, supplemented by **OOP testing** for the `IDisposable` contract and event mechanism.
+This makes **state-based testing** the primary technique, supplemented by **OOP testing** for the `IDisposable` contract.
 
 ##### Method-by-Method Strategy
 
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
-| **`SetDerivedKey(byte[])`** | **State-based + ECT** | Transitions from Created → Active. ECT for the key parameter: (1) valid key → state becomes Active, (2) null → `ArgumentNullException`, (3) second call clears old key. State-based because the method changes internal state. |
-| **`GetDerivedKey()`** | **State-based** | Behaviour depends on current state: (1) in Active state → returns clone of key, (2) in Created/Locked state → throws `InvalidOperationException`, (3) in Disposed state → throws `ObjectDisposedException`. Must test in each state. |
-| **`SetUser(Guid, string, string?)`** | **Unit test + ECT** | Sets three fields. ECT: (1) valid inputs, (2) null email → `ArgumentNullException`. Not state-dependent (can set user in any non-disposed state). |
-| **`GetAccessToken()`** | **State-based** | Returns token or null depending on whether `SetUser` was called. After dispose → `ObjectDisposedException`. |
-| **`CurrentUserId` / `CurrentUserEmail`** | **State-based** | Null before `SetUser`, populated after, null again after `ClearSession`, throws after `Dispose`. |
-| **`ClearSession()`** | **State-based** | Transitions Active → Locked. Verify: key zeroed, user/email/token cleared, `IsActive()` returns false, `VaultLocked` event fires. After dispose → returns silently (graceful). |
+| **`SetDerivedKey(byte[])`** | **State-based + ECT** | Transitions Created -> Active. ECT: (1) valid key -> Active, (2) null -> `ArgumentNullException`, (3) second call clears old key. |
+| **`GetDerivedKey()`** | **State-based** | Active -> returns clone. Created/Locked -> throws `InvalidOperationException`. Disposed -> throws `ObjectDisposedException`. |
+| **`SetUser(Guid, string, string?)`** | **Unit test + ECT** | ECT: (1) valid inputs, (2) null email -> `ArgumentNullException`. |
+| **`GetAccessToken()`** | **State-based** | Returns token or null. After dispose -> `ObjectDisposedException`. |
+| **`CurrentUserId` / `CurrentUserEmail`** | **State-based** | Null before `SetUser`, populated after, null after `ClearSession`, throws after `Dispose`. |
+| **`ClearSession()`** | **State-based** | Active -> Locked. Key zeroed, user cleared, `VaultLocked` event fires. After dispose -> returns silently. |
 | **`IsActive()`** | **State-based** | False in Created, true after `SetDerivedKey`, false after `ClearSession`, throws after `Dispose`. |
-| **`ResetInactivityTimer()`** | **State-based** | Can only call when not disposed. Verify timer restarts. |
-| **`InactivityTimeout` property** | **ECT + BVA** | Setting to positive value → success. Setting to `TimeSpan.Zero` or negative → `ArgumentOutOfRangeException`. BVA at zero boundary. |
-| **Inactivity timer expiry** | **State-based** | Set a short timeout (e.g., 100ms), set key, wait for timeout → verify `ClearSession` was called and `VaultLocked` fired. |
-| **`Dispose()`** | **OOP test (IDisposable)** | (1) After dispose, all methods throw `ObjectDisposedException` (except `ClearSession` which returns gracefully). (2) Double dispose does not throw. |
-| **`VaultLocked` event** | **OOP test (events)** | Subscribe to event, trigger `ClearSession`, verify handler was called. |
-| **Key clone verification** | **OOP test (encapsulation)** | Call `GetDerivedKey`, modify the returned array, call `GetDerivedKey` again → verify internal key was not modified. |
+| **`ResetInactivityTimer()`** | **State-based** | Only callable when not disposed. |
+| **`InactivityTimeout` property** | **ECT + BVA** | Positive -> success. `TimeSpan.Zero` or negative -> `ArgumentOutOfRangeException`. |
+| **Inactivity timer expiry** | **State-based** | Set short timeout (~100ms), set key, wait -> verify `ClearSession` called and `VaultLocked` fired. |
+| **`Dispose()`** | **OOP test (IDisposable)** | After dispose: all methods throw `ObjectDisposedException` except `ClearSession`. Double dispose does not throw. |
+| **`VaultLocked` event** | **OOP test (events)** | Subscribe, trigger `ClearSession`, verify handler called. |
+| **Key clone verification** | **OOP test (encapsulation)** | `GetDerivedKey` returns clone; modifying it does not affect internal state. |
 
 ---
 
-#### 5.3.3 `VaultService`
+#### 5.3.4 `VaultService`
 
 **File:** `Services/Implementations/VaultService.cs`
 
 **What to mock:**
-- `ICryptoService` — to control encryption/decryption results without real crypto
-- `ISessionService` — to control active/inactive state, user ID, derived key
-- `IVaultRepository` — to control what entities are "in the database" without a real DB
-- `ILogger<VaultService>` — to avoid null references (use `Mock<ILogger<VaultService>>()`)
+- `ICryptoService` — control encryption/decryption results
+- `ISessionService` — control active/inactive state, user ID, derived key
+- `IVaultRepository` — control what entities are "in the database"
+- `ILogger<VaultService>` — avoid null references
 
-**Why mock all 4 dependencies:** `VaultService` is an orchestrator — it coordinates crypto, session, and repository. Unit testing it means isolating its logic (state checks, error handling, data flow) from the real implementations of those dependencies. Mock return values let us test every code path.
+**Why mock all 4:** `VaultService` is an orchestrator — it coordinates crypto, session, and repository. Mocking lets us test every code path.
 
-**Fixture: `VaultServiceTestFixture` (recommended)**
+**Fixture: `VaultServiceFixture` (already exists)**
 
-**Why a fixture:** Every test needs the same 4 mocks set up in similar ways. A fixture encapsulates the creation of `Mock<ICryptoService>`, `Mock<ISessionService>`, `Mock<IVaultRepository>`, `Mock<ILogger<VaultService>>`, and a `VaultService` instance wired to them. Each test then configures mock behaviour specific to its scenario.
-
-**Alternatively:** Use a helper method in the test class (not `IClassFixture`) because mocks need per-test configuration. A **shared setup method** (constructor or helper) that creates fresh mocks and a fresh `VaultService` for each test is the best approach.
+**Why a fixture:** Every test needs the same 4 mocks. The fixture encapsulates mock creation and provides helper methods (`SetupActiveSession`, `SetupInactiveSession`, `BuildEncryptedEntity`). Each test calls `fixture.Reset()` then configures mock behaviour specific to its scenario.
 
 ##### Method-by-Method Strategy
 
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
-| **`GetAllEntriesAsync()`** | **Unit test** | (1) Session inactive → returns Fail. (2) Session active, repository returns entities, crypto decrypts → returns entries. (3) Some entities fail decryption → those are skipped. Mock `ISessionService.IsActive()` and `IVaultRepository.GetAllEntriesAsync()` to control inputs. Straightforward path testing. |
-| **`GetEntryAsync(string)`** | **ECT + Unit test** | Input `id` partitions into: (1) invalid GUID string → Fail, (2) valid GUID, entity not found → Fail, (3) valid GUID, entity found, decryption succeeds → Ok, (4) decryption fails → Fail, (5) repository throws → Fail. ECT is appropriate because the string input has distinct valid/invalid partitions. |
-| **`AddEntryAsync(VaultEntry)`** | **Unit test** | Multiple code paths: (1) session inactive → Fail, (2) no user → Fail, (3) new entry (empty Id/default CreatedAt) → generates new Id/timestamps, (4) existing entry → preserves Id/CreatedAt, (5) encryption fails → Fail, (6) repository throws → Fail, (7) happy path → Ok. |
-| **`DeleteEntryAsync(string)`** | **ECT + Unit test** | Input partitions: (1) session inactive → Fail, (2) invalid GUID → Fail, (3) valid GUID + repository succeeds → Ok, (4) repository throws → Fail. |
-| **`SearchEntries(string, List<VaultEntry>)`** | **ECT** | This is a pure function (no dependencies) — no mocking needed. Partitions: (1) null/empty/whitespace query → returns all, (2) query matches WebsiteName → filtered, (3) matches Username → filtered, (4) matches Url → filtered, (5) matches Notes → filtered, (6) matches Category → filtered, (7) no match → empty list, (8) case-insensitive match, (9) query with leading/trailing whitespace. ECT is ideal because the function is a filter with clear input/output partitions. |
+| **`GetAllEntriesAsync()`** | **Unit test** | (1) Session inactive -> Fail. (2) Active, repo returns entities, crypto decrypts -> entries. (3) Some entities fail decryption -> skipped. |
+| **`GetEntryAsync(string)`** | **ECT + Unit test** | Input `id` partitions: (1) invalid GUID -> Fail, (2) valid GUID not found -> Fail, (3) found + decryption succeeds -> Ok, (4) decryption fails -> Fail, (5) repo throws -> Fail. |
+| **`AddEntryAsync(VaultEntry)`** | **Unit test** | Paths: (1) session inactive -> Fail, (2) new entry (empty Id) -> generates new Id, (3) existing entry -> preserves Id, (4) encryption fails -> Fail, (5) repo throws -> Fail, (6) happy path -> Ok. |
+| **`DeleteEntryAsync(string)`** | **ECT + Unit test** | Partitions: (1) session inactive -> Fail, (2) invalid GUID -> Fail, (3) valid + success -> Ok, (4) repo throws -> Fail. |
+| **`SearchEntries(string, List<VaultEntry>)`** | **ECT** | Pure function — no mocking. Partitions: (1) null/empty query -> all, (2) matches WebsiteName, (3) matches Username, (4) matches Url, (5) matches Notes, (6) matches Category, (7) no match -> empty, (8) case-insensitive, (9) whitespace-trimmed query. |
 
 ---
 
-#### 5.3.4 `UserProfileService`
+#### 5.3.5 `UserProfileService`
 
 **File:** `Services/Implementations/UserProfileService.cs`
 
 **What to mock:**
-- `IVaultRepository` — to control database behaviour without a real DB
+- `IVaultRepository` — control database behaviour
 
-**Why mock:** `UserProfileService` is a thin wrapper around `IVaultRepository` that adds exception handling. Mocking the repository lets us simulate success, `PostgrestException`, and generic exceptions.
+**Why mock:** Thin wrapper around `IVaultRepository`. Mock to simulate success, `PostgrestException`, and generic exceptions.
 
-**Fixture:** None needed — the mock is simple enough to set up per-test.
-
-**Why no fixture:** Only one dependency, and each test needs different mock behaviour. The setup is 3 lines of code.
+**Fixture:** None — only one dependency, simple per-test setup.
 
 ##### Method-by-Method Strategy
 
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
-| **`CreateProfileAsync(UserProfileEntity)`** | **Unit test** | Three code paths: (1) repository succeeds → `Result.Ok()`, (2) repository throws `PostgrestException` → `Result.Fail` with DB error, (3) repository throws generic exception → `Result.Fail` with general error. Each path is triggered by configuring the mock. |
-| **`GetProfileAsync(Guid)`** | **Unit test** | Four paths: (1) found → `Result.Ok(profile)`, (2) not found (null) → `Result.Fail("not found")`, (3) `PostgrestException` → `Result.Fail` with DB error, (4) generic exception → `Result.Fail`. |
+| **`CreateProfileAsync(UserProfileEntity)`** | **Unit test** | Three paths: (1) success -> `Result.Ok()`, (2) `PostgrestException` -> `Result.Fail` with DB error, (3) generic exception -> `Result.Fail`. |
+| **`GetProfileAsync(Guid)`** | **Unit test** | Four paths: (1) found -> `Result.Ok(profile)`, (2) null -> `Result.Fail("not found")`, (3) `PostgrestException` -> Fail, (4) generic exception -> Fail. |
 
 ---
 
-#### 5.3.5 `AuthService`
+#### 5.3.6 `ZxcvbnPasswordStrengthChecker`
+
+**File:** `Services/Implementations/ZxcvbnPasswordStrengthChecker.cs`
+
+**Excluded from coverage** via `[ExcludeFromCodeCoverage]`. This is a thin wrapper around the third-party `Zxcvbn.Core` library. Testing it would just test the library, not our code.
+
+**No tests needed** — the attribute excludes it from coverage metrics.
+
+---
+
+### 5.4 Services (Integration — Local Supabase)
+
+These services depend on `Supabase.Client` (a concrete class, not an interface). They cannot be effectively unit-tested with mocks because:
+- `Supabase.Client.Auth` is a concrete type with methods like `SignUp`, `SignIn`, `SignOut`
+- `Supabase.Client.From<T>()` returns Postgrest query builders that are difficult to mock
+- Mocking would just test mock setup, not real database/auth behaviour
+
+**Solution: Integration tests with local Supabase Docker stack.**
+
+---
+
+#### 5.4.1 `AuthService` — Integration Tests
 
 **File:** `Services/Implementations/AuthService.cs`
 
 **What to mock:**
-- `Supabase.Client` — **PROBLEMATIC**: this is a concrete class, not an interface. It is difficult to mock directly because `Auth` is a property returning a concrete type with methods like `SignUp`, `SignIn`, `SignOut`.
-- `ICryptoService` — to control key derivation and encryption
-- `IUserProfileService` — to control profile retrieval
-- `ISessionService` — to control session state
-- `ISupabaseExceptionMapper` — to control exception mapping
-- `ILogger<AuthService>` — to avoid nulls
+- **Nothing is mocked** — use real `Supabase.Client`, real `CryptoService`, real `SessionService`, real `UserProfileService`, real `VaultRepository`, real `SupabaseExceptionMapper`
+- The entire dependency chain is real, hitting the local Supabase Docker instance
 
-**Fixture strategy:** Due to the `Supabase.Client` concrete dependency, full unit testing of `AuthService` is difficult. **Recommendation:** Focus unit tests on the testable private methods extracted through the public API where possible, and acknowledge that `AuthService` is a better candidate for **integration testing** in a future phase.
+**Why integration testing is the right strategy:**
+1. `AuthService` orchestrates 6 dependencies including `Supabase.Client` (concrete). Mocking all of them would create fragile tests that verify mock wiring, not actual auth flows.
+2. The real value is testing the full flow: SignUp -> user created in Supabase Auth -> `handle_new_user_profile` trigger creates profile -> Login -> key derivation -> verification token decrypt.
+3. RLS policies, database triggers, and Supabase Auth behaviour can only be verified with a real instance.
 
-**What CAN be tested without Supabase:**
-- `ValidateCredentials` logic (called by `RegisterAsync` and `LoginAsync`) — test via the public methods by providing invalid email/password (the validation happens before any Supabase calls)
-- `IsLocked()` — requires mocking `Supabase.Client.Auth.CurrentSession`, which may be difficult
-- `ChangeMasterPasswordAsync` — returns `Result.Fail("Not implemented")`, trivially testable
+**Fixture: `SupabaseFixture` (new — `IAsyncLifetime` + `IClassFixture`)**
+
+**Why a fixture:**
+- Creating a `Supabase.Client` is expensive (HTTP connection, initialization)
+- The fixture should:
+  1. Read `Supabase__Url` and `Supabase__AnonKey` from environment variables (set by `supabase status`)
+  2. Create and initialize a `Supabase.Client`
+  3. Create real `CryptoService`, `SessionService`, `VaultRepository`, `UserProfileService`, `SupabaseExceptionMapper`, `ILogger`
+  4. Build and expose an `AuthService` (and `VaultRepository` for the repo integration tests)
+  5. Provide a helper to generate unique test emails (to avoid conflicts between test runs)
+  6. On dispose, clean up any test users if possible
+
+**Why `IAsyncLifetime`:** `Supabase.Client.InitializeAsync()` is async and must complete before any test runs.
 
 ##### Method-by-Method Strategy
 
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
-| **`RegisterAsync(email, password)`** — validation path only | **ECT** | Provide invalid email → expect validation failure. Provide invalid password → expect validation failure. These tests exercise the validator without needing Supabase. ECT partitions: invalid email, too-short password, missing special chars, etc. |
-| **`ChangeMasterPasswordAsync(current, new)`** | **Unit test** | Always returns `Result.Fail("Not implemented.")`. Trivial test. |
-| **Full `RegisterAsync`/`LoginAsync` flows** | **Integration test (future)** | These require a Supabase connection or significant mocking setup. Recommend integration tests against a test Supabase instance. |
+| **`RegisterAsync(email, password)` — validation** | **ECT** | Invalid email -> fail. Invalid password (too short, missing special chars) -> fail. These exercise the validators before any Supabase calls. Partitions: empty email, invalid format email, password too short, password missing required chars. |
+| **`RegisterAsync(email, password)` — happy path** | **Integration test** | Register with valid email/password. Verify `Result.Ok()`. Then verify: (1) user exists in Supabase Auth (can login), (2) `UserProfiles` row created by trigger (salt + verification token stored). This is the most critical test — it validates the full registration flow including the DB trigger. |
+| **`RegisterAsync(email, password)` — duplicate email** | **Integration test** | Register same email twice. Second call should fail with "already exists". Tests Supabase's 422 response mapped through `SupabaseExceptionMapper`. |
+| **`LoginAsync(email, password)` — happy path** | **Integration test** | After successful registration, login with same credentials. Verify: `Result.Ok()`, `CurrentUserId` is set, `CurrentUserEmail` is set, `SessionService.IsActive()` is true, `SessionService.GetDerivedKey()` returns a 32-byte key. |
+| **`LoginAsync(email, password)` — wrong password** | **Integration test** | Register, then login with wrong password. Should fail with auth error. |
+| **`LoginAsync(email, password)` — non-existent user** | **Integration test** | Login with email that was never registered. Should fail. |
+| **`LockAsync()`** | **Integration test** | Login, then lock. Verify: session cleared, `IsLocked()` returns true, `IsActive()` returns false. |
+| **`IsLocked()`** | **Integration test** | Before login -> true. After login -> false. After lock -> true. |
+| **`ChangeMasterPasswordAsync(current, new)`** | **Unit test** | Always returns `Result.Fail("Not implemented.")`. Trivial. |
+| **`ValidateCredentials` (private, tested via public API)** | **ECT** | Tested indirectly through `RegisterAsync` with invalid inputs. |
+| **`OnAuthStateChanged` (private event handler)** | **Integration test** | Tested indirectly: SignOut triggers `SignedOut` state -> `ClearSession`. TokenRefreshed tested implicitly through long-lived sessions. |
+
+##### AuthService Test Class Structure
+
+```csharp
+public class AuthServiceIntegrationTests : IClassFixture<SupabaseFixture>, IAsyncLifetime
+{
+    private readonly SupabaseFixture _fixture;
+
+    // Each test gets a unique email via fixture helper
+    // Tests that need a registered user call RegisterAsync first
+    // Tests clean up by calling LockAsync at the end
+}
+```
 
 ---
 
-#### 5.3.6 `VaultRepository`
+#### 5.4.2 `VaultRepository` — Integration Tests
 
 **File:** `Services/Implementations/VaultRepository.cs`
 
-**What to mock:** N/A — `VaultRepository` directly uses `Supabase.Client`, which is a concrete class.
+**What to mock:** Nothing — test against real local Supabase.
 
-**Why NOT to unit test:** `VaultRepository` is a thin data-access layer. Every method is a one-liner delegating to `Supabase.Client`. Unit testing with mocks would just verify that mock methods were called — it would test mock setup, not actual behaviour. This is a textbook case for **integration testing** against a real (or test) database.
+**Why integration testing:**
+1. `VaultRepository` is a thin data-access layer. Every method delegates to `Supabase.Client`. Mocking would just verify mock calls.
+2. The real value is testing: RLS policies enforce user isolation, CRUD operations work with real Postgrest, `UserProfiles_pkey` and `VaultEntries_pkey` constraints are enforced.
 
-**Recommendation:** Skip unit testing for `VaultRepository`. Cover it in a future integration test phase with a test Supabase instance.
+**Fixture: Same `SupabaseFixture` as AuthService**
 
----
+**Why shared fixture:** Both `AuthService` and `VaultRepository` tests need a Supabase client. The fixture creates one client and exposes both services.
 
-#### 5.3.7 `ZxcvbnPasswordStrengthChecker`
-
-**File:** `Services/Implementations/ZxcvbnPasswordStrengthChecker.cs`
-
-**What to mock:** Nothing — uses the `Zxcvbn.Core` library directly. We test the real implementation because the purpose is to verify the integration with the zxcvbn library and our label/feedback mapping.
-
-**Fixture:** None — construction is trivial.
-
-**Why no fixture:** Stateless, cheap to construct.
+**Test setup:** Each test first registers and logs in a user (via `AuthService`), which authenticates the Supabase client's session. Then it exercises `VaultRepository` CRUD operations.
 
 ##### Method-by-Method Strategy
 
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
-| **`CheckStrength(string)`** | **ECT** | Input partitions based on expected strength: (1) empty string → score 0, (2) weak password like `"password"` → low score (0–1), (3) strong random password → high score (3–4). ECT is appropriate because password strength naturally partitions into discrete categories. |
-| **`GetStrengthLabel(int)`** | **ECT + BVA** | Maps integers to labels. Partitions: 0→"Very Weak", 1→"Weak", 2→"Fair", 3→"Strong", 4→"Very Strong", anything else→"Unknown". BVA at boundaries: -1 and 5 (both → "Unknown"). This is also a good candidate for `[Theory]` with `[InlineData]`. |
-| **`GetFeedback(string)`** | **Unit test** | Verify it returns a non-null string. The content depends on the zxcvbn library, so we just verify the integration works without crashing. |
+| **`CreateUserProfileAsync(UserProfileEntity)`** | **Integration test** | Tested indirectly through `AuthService.RegisterAsync` (the `handle_new_user_profile` trigger creates the profile). Direct test: register user, verify profile exists via `GetUserProfileAsync`. Also test: creating a duplicate profile should throw `PostgrestException` (primary key violation). |
+| **`GetUserProfileAsync(Guid)`** | **Integration test + ECT** | Partitions: (1) existing user -> returns profile with correct salt/token, (2) non-existent UUID -> returns null (caught by `InvalidOperationException` handler). Also verify RLS: user A cannot read user B's profile. |
+| **`GetAllEntriesAsync(Guid)`** | **Integration test** | (1) No entries -> empty list. (2) Insert entries, retrieve -> all returned, ordered by `UpdatedAt` descending. (3) RLS: user A cannot see user B's entries. |
+| **`GetEntryAsync(Guid, Guid)`** | **Integration test + ECT** | Partitions: (1) existing entry -> returns it, (2) non-existent entry -> returns null, (3) entry belongs to different user -> returns null (RLS). |
+| **`UpsertEntryAsync(VaultEntryEntity)`** | **Integration test** | (1) Insert new entry -> appears in GetAll. (2) Update existing entry -> `UpdatedAt` changes, data updated. (3) Verify `UpdatedAt` is set to `DateTime.UtcNow` by the method. |
+| **`DeleteEntryAsync(Guid, Guid)`** | **Integration test** | (1) Delete existing entry -> no longer in GetAll. (2) Delete non-existent entry -> no error (idempotent). (3) RLS: user A cannot delete user B's entry. |
+
+##### RLS Policy Tests (Cross-Cutting)
+
+These are critical security tests unique to the integration approach:
+
+| # | Test | Expected | Why |
+|---|------|----------|-----|
+| 1 | User A reads User B's profile | Not found (RLS blocks) | `profiles_select_own` policy |
+| 2 | User A reads User B's vault entries | Empty list (RLS filters) | `Users can read own vault entries` policy |
+| 3 | User A deletes User B's vault entry | No effect (RLS blocks) | `Users can delete own vault entries` policy |
+| 4 | User A inserts entry with User B's UserId | Should fail (RLS `WITH CHECK`) | `Users can insert own vault entries` policy |
 
 ---
 
-### 5.4 Extensions
+### 5.5 Extensions
 
-#### 5.4.1 `VaultEntryExtensions`
+#### 5.5.1 `VaultEntryExtensions`
 
 **File:** `Extensions/VaultEntryExtensions.cs`
 
@@ -610,48 +694,46 @@ This makes **state-based testing** the primary technique, supplemented by **OOP 
 
 **Fixture:** None.
 
-**Why no mock/fixture:** These are pure mapping functions. Input → output. No state, no I/O.
-
-**Reasoning for strategy:** These are data-mapping methods. The primary concern is that all fields are mapped correctly and null fields are handled. ECT is appropriate for the null-handling path.
+**Note:** `VaultEntryPayload` now uses `required init` properties (not a positional constructor). The extension `ToPayload` constructs with object initializer syntax.
 
 ##### Method-by-Method Strategy
 
 | Method | Technique | Reasoning |
 |--------|-----------|-----------|
-| **`ToPayload(VaultEntry)`** | **Unit test + ECT** | Unit test: verify all 7 fields map correctly. ECT: one test with all populated fields (valid class), one with null fields (verify they default to `""`). |
-| **`ToVaultEntry(VaultEntryPayload, Guid, DateTime, DateTime)`** | **Unit test + ECT** | Same approach: verify all fields map, plus metadata (Id, CreatedAt, UpdatedAt). ECT: null payload fields → default to `""`. |
-| **`ToVaultEntry(VaultEntryPayload, VaultEntryEntity)`** | **Unit test** | Verify it delegates to the 3-parameter overload with `entity.Id`, `entity.CreatedAt`, `entity.UpdatedAt`. |
-| **Round-trip: `ToPayload` → `ToVaultEntry`** | **Slice test** | Create a `VaultEntry`, convert to payload, convert back with metadata. Verify all fields survived. This catches field-mapping inconsistencies. |
+| **`ToPayload(VaultEntry)`** | **Unit test + ECT** | Verify all 7 fields map correctly. ECT: populated fields (valid class), null fields (default to `""`). |
+| **`ToVaultEntry(VaultEntryPayload, Guid, DateTime, DateTime)`** | **Unit test + ECT** | All fields map + metadata. ECT: null payload fields -> `""`. |
+| **`ToVaultEntry(VaultEntryPayload, VaultEntryEntity)`** | **Unit test** | Verify delegation to 3-parameter overload. |
+| **Round-trip: `ToPayload` -> `ToVaultEntry`** | **Slice test** | Create VaultEntry, convert to payload, convert back. All fields survive. |
 
 ---
 
-### 5.5 Exception Mapper
+### 5.6 Exception Mapper
 
-#### 5.5.1 `SupabaseExceptionMapper`
+#### 5.6.1 `SupabaseExceptionMapper`
 
 **File:** `Exceptions/SupabaseExceptionMapper.cs`
 
-**What to mock:** Nothing — the mapper is a pure function (exception → Result).
+**What to mock:** Nothing — pure function.
 
 **Fixture:** None.
 
-**Why decision table is the right technique:** The mapper has a clear decision structure: first pattern-match on exception type, then for `GotrueException`, match on status code, then fall back to message content matching. This is a multi-condition decision problem — the textbook use case for a decision table.
+**Why decision table:** The mapper has a clear decision structure: pattern-match on exception type, then for `GotrueException` match on status code, then fall back to message content matching.
 
 ##### Method: `MapAuthException(Exception)`
 
 **Decision table** (see [Section 6.3](#63-supabaseexceptionmapper)):
 
-| # | Exception Type | Status Code | Message Content | Expected Result Message |
-|---|---------------|-------------|-----------------|------------------------|
+| # | Exception Type | Status Code | Message Content | Expected Result |
+|---|---------------|-------------|-----------------|-----------------|
 | 1 | `GotrueException` | 422 | (any) | "already exists" |
 | 2 | `GotrueException` | 400 | (any) | "Invalid request" |
 | 3 | `GotrueException` | 429 | (any) | "Too many attempts" |
-| 4 | `GotrueException` | other | contains "already registered" | "already exists" |
-| 5 | `GotrueException` | other | contains "user_already_exists" | "already exists" |
-| 6 | `GotrueException` | other | contains "invalid" | "Invalid email or password" |
+| 4 | `GotrueException` | other | "already registered" | "already exists" |
+| 5 | `GotrueException` | other | "user_already_exists" | "already exists" |
+| 6 | `GotrueException` | other | "invalid" | "Invalid email or password" |
 | 7 | `GotrueException` | other | other message | "Authentication failed" |
-| 8 | `HttpRequestException` | — | — | "Network error" |
-| 9 | Other exception | — | — | "unexpected error" |
+| 8 | `HttpRequestException` | - | - | "Network error" |
+| 9 | Other exception | - | - | "unexpected error" |
 
 ---
 
@@ -659,15 +741,15 @@ This makes **state-based testing** the primary technique, supplemented by **OOP 
 
 ### 6.1 PasswordOptionsValidator
 
-| Rule | Length in [12, 128]? | ≥ 1 char type selected? | Expected |
+| Rule | Length in [12, 128]? | >= 1 char type selected? | Expected |
 |------|---------------------|------------------------|----------|
 | R1 | Yes | Yes | Valid |
-| R2 | Yes | No (all false) | Invalid – "At least one character set" |
-| R3 | No (< 12) | Yes | Invalid – "length must be between" |
-| R4 | No (> 128) | Yes | Invalid – "length must be between" |
-| R5 | No | No | Invalid – both errors |
+| R2 | Yes | No (all false) | Invalid |
+| R3 | No (< 12) | Yes | Invalid |
+| R4 | No (> 128) | Yes | Invalid |
+| R5 | No | No | Invalid - both errors |
 
-### 6.2 CryptoService.GeneratePassword
+### 6.2 PasswordGenerator.Generate
 
 Flags: `IncludeUppercase (U)`, `IncludeLowercase (L)`, `IncludeDigits (D)`, `IncludeSpecialCharacters (S)`, `ExcludeAmbiguousCharacters (A)`
 
@@ -679,7 +761,7 @@ Flags: `IncludeUppercase (U)`, `IncludeLowercase (L)`, `IncludeDigits (D)`, `Inc
 | R4 | F | T | F | F | F | Lowercase only |
 | R5 | F | F | T | F | F | Digits only |
 | R6 | F | F | F | T | F | Special chars only |
-| R7 | F | F | F | F | F | Fail – no char types (caught by validator) |
+| R7 | F | F | F | F | F | Fail - no char types (caught by validator) |
 | R8 | T | T | F | F | F | Upper + lower only |
 | R9 | T | F | T | F | T | Upper + digits, no ambiguous |
 | R10 | F | T | F | T | T | Lower + special, no ambiguous |
@@ -688,15 +770,15 @@ Flags: `IncludeUppercase (U)`, `IncludeLowercase (L)`, `IncludeDigits (D)`, `Inc
 
 | Rule | Exception Type | Status Code | Message Contains | Result |
 |------|---------------|-------------|-----------------|--------|
-| R1 | GotrueException | 422 | — | "already exists" |
-| R2 | GotrueException | 400 | — | "Invalid request" |
-| R3 | GotrueException | 429 | — | "Too many attempts" |
+| R1 | GotrueException | 422 | - | "already exists" |
+| R2 | GotrueException | 400 | - | "Invalid request" |
+| R3 | GotrueException | 429 | - | "Too many attempts" |
 | R4 | GotrueException | other | "already registered" | "already exists" |
 | R5 | GotrueException | other | "user_already_exists" | "already exists" |
 | R6 | GotrueException | other | "invalid" | "Invalid email or password" |
 | R7 | GotrueException | other | other | "Authentication failed" |
-| R8 | HttpRequestException | — | — | "Network error" |
-| R9 | (other) | — | — | "unexpected error" |
+| R8 | HttpRequestException | - | - | "Network error" |
+| R9 | (other) | - | - | "unexpected error" |
 
 ---
 
@@ -706,14 +788,14 @@ Flags: `IncludeUppercase (U)`, `IncludeLowercase (L)`, `IncludeDigits (D)`, `Inc
 
 | Partition | Representative | Expected |
 |-----------|---------------|----------|
-| **Valid** (12–128 chars, all types) | `"Abcdefgh1!xy"` | Valid |
-| **Empty** | `""` | Invalid – "cannot be empty" |
-| **Too short** (1–11 chars) | `"Ab1!"` | Invalid – min length |
-| **Too long** (> 128 chars) | 129-char string | Invalid – max length |
-| **Missing uppercase** (12+ chars) | `"abcdefgh1!xy"` | Invalid – "must contain uppercase" |
-| **Missing lowercase** (12+ chars) | `"ABCDEFGH1!XY"` | Invalid – "must contain lowercase" |
-| **Missing digit** (12+ chars) | `"Abcdefghij!x"` | Invalid – "must contain digit" |
-| **Missing special** (12+ chars) | `"Abcdefghij1x"` | Invalid – "must contain special" |
+| **Valid** (12-128 chars, all types) | `"Abcdefgh1!xy"` | Valid |
+| **Empty** | `""` | Invalid |
+| **Too short** (1-11 chars) | `"Ab1!"` | Invalid |
+| **Too long** (> 128 chars) | 129-char string | Invalid |
+| **Missing uppercase** (12+ chars) | `"abcdefgh1!xy"` | Invalid |
+| **Missing lowercase** (12+ chars) | `"ABCDEFGH1!XY"` | Invalid |
+| **Missing digit** (12+ chars) | `"Abcdefghij!x"` | Invalid |
+| **Missing special** (12+ chars) | `"Abcdefghij1x"` | Invalid |
 
 ### 7.2 Email Validation
 
@@ -723,6 +805,7 @@ Flags: `IncludeUppercase (U)`, `IncludeLowercase (L)`, `IncludeDigits (D)`, `Inc
 | **Empty** | `""` | Invalid |
 | **No @** | `"userexample.com"` | Invalid |
 | **No domain** | `"user@"` | Invalid |
+| **Uppercase local part** | `"User@example.com"` | Invalid (regex) |
 | **At max (256 chars)** | 256-char email | Valid |
 | **Over max (257 chars)** | 257-char email | Invalid |
 
@@ -740,7 +823,7 @@ Flags: `IncludeUppercase (U)`, `IncludeLowercase (L)`, `IncludeDigits (D)`, `Inc
 
 | Partition | Representative | Expected |
 |-----------|---------------|----------|
-| **Valid (28+ bytes decoded)** | base64 of 28-byte or 100-byte array | Valid |
+| **Valid (28+ bytes decoded)** | base64 of 28+ byte array | Valid |
 | **Empty** | `""` | Invalid |
 | **Null** | `null` | Invalid |
 | **Non-base64** | `"%%%"` | Invalid |
@@ -752,16 +835,16 @@ Flags: `IncludeUppercase (U)`, `IncludeLowercase (L)`, `IncludeDigits (D)`, `Inc
 
 ### 8.1 Inheritance Testing
 
-- **`Result<T>` extends `Result`**: Verify polymorphic assignment — a `Result<int>` assigned to a `Result` variable should expose `Success` and `Message` correctly.
+- **`Result<T>` extends `Result`**: Verify polymorphic assignment.
 - **`VaultEntryEntity` / `UserProfileEntity` extend `BaseModel`**: Verify they can be used where `BaseModel` is expected.
 
 ### 8.2 Interface Contract Testing
 
 | Interface | Implementation | Key Contract |
 |-----------|---------------|-------------|
-| `ICryptoService` | `CryptoService` | Encrypt → Decrypt round-trip recovers plaintext |
-| `ISessionService` | `SessionService` | Set → Get → Clear lifecycle; `IDisposable` contract |
-| `IPasswordStrengthChecker` | `ZxcvbnPasswordStrengthChecker` | Score is 0–4; labels match |
+| `ICryptoService` | `CryptoService` | Encrypt -> Decrypt round-trip recovers plaintext |
+| `IPasswordGenerator` | `PasswordGenerator` | Generated passwords meet all enabled constraints |
+| `ISessionService` | `SessionService` | Set -> Get -> Clear lifecycle; `IDisposable` contract |
 | `ISupabaseExceptionMapper` | `SupabaseExceptionMapper` | All exception types produce user-friendly messages |
 
 ### 8.3 `IDisposable` Testing (`SessionService`)
@@ -779,20 +862,17 @@ Flags: `IncludeUppercase (U)`, `IncludeLowercase (L)`, `IncludeDigits (D)`, `Inc
 
 ### 8.4 Encapsulation Testing
 
-- **`SessionService.GetDerivedKey()` returns a clone**: Modify the returned array → call `GetDerivedKey()` again → verify internal state unchanged.
-- **`CryptoService.DeriveKey`**: Verify that the password bytes are cleared from memory (the implementation does this, but it is hard to test externally — this is more of a code review concern).
+- **`SessionService.GetDerivedKey()` returns a clone**: Modify returned array -> call again -> internal state unchanged.
 
 ### 8.5 Event Testing
 
-- **`SessionService.VaultLocked` event**: Subscribe, call `ClearSession()`, verify the event handler was invoked with correct sender and `EventArgs.Empty`.
+- **`SessionService.VaultLocked` event**: Subscribe, call `ClearSession()`, verify event handler invoked.
 
 ---
 
 ## 9. Additional Recommended Techniques
 
 ### 9.1 Boundary Value Analysis (BVA)
-
-Key boundaries across the codebase:
 
 | Parameter | Min | Min-1 | Max | Max+1 |
 |-----------|-----|-------|-----|-------|
@@ -806,11 +886,9 @@ Key boundaries across the codebase:
 ### 9.2 State Transition Testing (`SessionService`)
 
 ```
-[Created] ──SetDerivedKey()──► [Active] ──ClearSession()──► [Locked]
-                                  │                            │
-                                  ├───Dispose()──► [Disposed]  ├──SetDerivedKey()──► [Active]
-                                                       ▲
-                               [Locked] ──Dispose()────┘
+[Created] --SetDerivedKey()--> [Active] --ClearSession()--> [Locked]
+                                  |                            |
+                                  +---Dispose()--> [Disposed] <+
 ```
 
 Test each valid transition. Test that invalid operations in each state produce correct errors.
@@ -819,15 +897,24 @@ Test each valid transition. Test that invalid operations in each state produce c
 
 | Slice | Components Involved | What It Verifies |
 |-------|-------------------|-----------------|
-| Encrypt → Decrypt | `CryptoService.Encrypt`, `CryptoService.Decrypt` | Round-trip data integrity |
+| Encrypt -> Decrypt | `CryptoService.Encrypt`, `CryptoService.Decrypt` | Round-trip data integrity |
 | Blob serialisation | `EncryptedBlob.ToBase64String`, `EncryptedBlob.FromBase64String` | Serialisation/deserialisation consistency |
 | Payload serialisation | `VaultEntryPayload.ToJson`, `VaultEntryPayload.FromJson` | JSON round-trip |
-| Entry mapping | `VaultEntry` → `ToPayload` → `ToVaultEntry` | Field mapping consistency |
-| Full vault flow | `VaultEntry` → `ToPayload` → `ToJson` → `Encrypt` → `ToBase64String` → `FromBase64String` → `Decrypt` → `FromJson` → `ToVaultEntry` | Complete data pipeline integrity |
+| Entry mapping | `VaultEntry` -> `ToPayload` -> `ToVaultEntry` | Field mapping consistency |
+| Full vault flow | `VaultEntry` -> `ToPayload` -> `ToJson` -> `Encrypt` -> `ToBase64String` -> `FromBase64String` -> `Decrypt` -> `FromJson` -> `ToVaultEntry` | Complete data pipeline |
 
-### 9.4 Pairwise / Combinatorial Testing
+### 9.4 Integration Testing Slices (Local Supabase)
 
-`PasswordOptions` has 5 boolean flags + 1 integer. Full combination = 2^5 × many lengths = huge. Use pairwise testing to reduce while covering all 2-way interactions:
+| Slice | Components | What It Verifies |
+|-------|-----------|-----------------|
+| Registration flow | `AuthService.RegisterAsync` -> Supabase Auth -> `handle_new_user_profile` trigger -> `UserProfiles` table | Full signup pipeline including DB trigger |
+| Login flow | `AuthService.LoginAsync` -> Supabase Auth -> `UserProfileService.GetProfileAsync` -> key derivation -> token verification | Full authentication pipeline |
+| Vault CRUD | `VaultRepository` -> Supabase Postgrest -> `VaultEntries` table -> RLS policies | Data persistence with security |
+| Cross-user isolation | User A vs User B via RLS | Row-Level Security enforcement |
+
+### 9.5 Pairwise / Combinatorial Testing
+
+`PasswordOptions` has 5 boolean flags + 1 integer. Full combination = 2^5 x many lengths = huge. Use pairwise testing:
 
 | U | L | D | S | A |
 |---|---|---|---|---|
@@ -838,7 +925,7 @@ Test each valid transition. Test that invalid operations in each state produce c
 | T | T | F | F | F |
 | F | F | F | T | T |
 
-### 9.5 Error Guessing
+### 9.6 Error Guessing
 
 | Area | Error Guess |
 |------|------------|
@@ -847,10 +934,12 @@ Test each valid transition. Test that invalid operations in each state produce c
 | `EncryptedBlob.ToBase64String` | Blob with zero-length ciphertext |
 | `VaultService.SearchEntries` | Entries with null properties, empty list |
 | `SessionService` | Concurrent `SetDerivedKey` / `ClearSession` from different threads |
+| `AuthService.RegisterAsync` | Supabase down (connection refused) |
+| `VaultRepository` | Inserting entry with non-existent UserId (FK violation) |
 
 ---
 
-## 10. Coverage Goals & Measurement
+## 10. Coverage Goals and Measurement
 
 ### 10.1 Running Coverage
 
@@ -858,6 +947,10 @@ Test each valid transition. Test that invalid operations in each state produce c
 # Run tests with coverage
 dotnet test PasswordManager.Tests/PasswordManager.Tests.csproj \
   --collect:"XPlat Code Coverage"
+
+# Or with coverlet.msbuild
+dotnet test PasswordManager.Tests/PasswordManager.Tests.csproj \
+  /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
 
 # Generate HTML report
 dotnet tool install -g dotnet-reportgenerator-globaltool
@@ -871,57 +964,73 @@ reportgenerator \
 
 | Metric | Target | Notes |
 |--------|--------|-------|
-| **Line coverage** | ≥ 80% | All Core classes |
-| **Branch coverage** | ≥ 75% | Important for validators and decision logic |
-| **Method coverage** | 100% | Every public/internal method has ≥ 1 test |
+| **Line coverage** | >= 80% | All Core classes |
+| **Branch coverage** | >= 75% | Important for validators and decision logic |
+| **Method coverage** | 100% | Every public/internal method has >= 1 test |
 | **Class coverage** | 100% | Every class has a test class |
 
 ### 10.3 Exclusions
 
 Exclude from coverage metrics:
-- `VaultRepository` — Supabase-dependent; integration test candidate
-- `AuthService` — mostly Supabase-dependent; only validation logic is unit-testable
+- `ZxcvbnPasswordStrengthChecker` — marked `[ExcludeFromCodeCoverage]` (third-party wrapper)
+- Private helper methods in `PasswordValidator` — marked `[ExcludeFromCodeCoverage]` (simple LINQ one-liners tested via public API)
 
-### 10.4 CI Enforcement
+### 10.4 CI Enforcement (Jenkins)
 
 ```bash
-dotnet test /p:CollectCoverage=true /p:Threshold=80 /p:ThresholdType=line
+# Supabase start + reset for integration tests
+supabase start
+supabase db reset
+eval "$(supabase status --output env)"
+export Supabase__Url="$SUPABASE_URL"
+export Supabase__AnonKey="$SUPABASE_ANON_KEY"
+export Supabase__ServiceRoleKey="$SUPABASE_SERVICE_ROLE_KEY"
+
+dotnet test $TESTS_PROJECT_PATH /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
 ```
 
 ---
 
-## 11. Test Organisation & Naming Conventions
+## 11. Test Organisation and Naming Conventions
 
 ### 11.1 Directory Structure
 
 ```
 PasswordManager.Tests/
+├── Data/
+│   └── TestData.cs                          (existing)
+├── Fixtures/
+│   ├── CryptoServiceFixture.cs              (existing)
+│   ├── EncryptedBlobFixture.cs              (existing)
+│   ├── VaultServiceFixture.cs               (existing)
+│   └── SupabaseFixture.cs                   (NEW — for AuthService + VaultRepository integration)
 ├── Models/
-│   ├── ResultTests.cs
-│   ├── EncryptedBlobTests.cs
-│   ├── PasswordOptionsTests.cs
-│   ├── VaultEntryTests.cs
-│   ├── VaultEntryPayloadTests.cs
+│   ├── ResultTests.cs                       (existing)
+│   ├── EncryptedBlobTests.cs                (existing)
+│   ├── PasswordOptionsTests.cs              (existing)
+│   ├── VaultEntryTests.cs                   (existing)
+│   ├── VaultEntryPayloadTests.cs            (existing)
 │   └── PasswordPolicyTests.cs
 ├── Validation/
-│   ├── PasswordValidatorTests.cs
-│   ├── EmailValidatorTests.cs
-│   ├── EncryptionInputValidatorTests.cs
-│   ├── DecryptionInputValidatorTests.cs
-│   ├── PasswordOptionsValidatorTests.cs
-│   └── EncryptedBlobFormatValidatorTests.cs
+│   ├── PasswordValidatorTests.cs            (existing)
+│   ├── EmailValidatorTests.cs               (existing)
+│   ├── EncryptionInputValidatorTests.cs     (existing)
+│   ├── DecryptionInputValidatorTests.cs     (existing)
+│   ├── PasswordOptionsValidatorTests.cs     (existing)
+│   └── EncryptedBlobFormatValidatorTests.cs (existing)
 ├── Services/
-│   ├── CryptoServiceTests.cs
-│   ├── SessionServiceTests.cs
-│   ├── VaultServiceTests.cs
-│   ├── UserProfileServiceTests.cs
-│   └── ZxcvbnPasswordStrengthCheckerTests.cs
+│   ├── CryptoServiceTests.cs               (existing)
+│   ├── PasswordGeneratorTests.cs            (NEW)
+│   ├── SessionServiceTests.cs              (existing)
+│   ├── VaultServiceTests.cs                (existing)
+│   └── UserProfileServiceTests.cs          (existing)
+├── Integration/
+│   ├── AuthServiceIntegrationTests.cs       (NEW)
+│   └── VaultRepositoryIntegrationTests.cs   (NEW)
 ├── Extensions/
 │   └── VaultEntryExtensionsTests.cs
-├── Exceptions/
-│   └── SupabaseExceptionMapperTests.cs
-└── Fixtures/
-    └── CryptoServiceFixture.cs
+└── Exceptions/
+    └── SupabaseExceptionMapperTests.cs
 ```
 
 ### 11.2 Naming Convention
@@ -936,6 +1045,8 @@ Examples:
 - `SearchEntries_EmptyQuery_ReturnsAllEntries`
 - `ClearSession_WhenActive_FiresVaultLockedEvent`
 - `GetDerivedKey_AfterDispose_ThrowsObjectDisposedException`
+- `RegisterAsync_ValidCredentials_CreatesUserAndProfile` (integration)
+- `GetAllEntriesAsync_UserBCannotSeeUserAEntries_ReturnsEmptyList` (integration + RLS)
 
 ### 11.3 Test Attributes
 
@@ -943,17 +1054,31 @@ Examples:
 |-----------|---------|
 | `[Fact]` | Single deterministic test case |
 | `[Theory]` + `[InlineData(...)]` | Parameterised tests (equivalence classes, decision tables) |
-| `[Trait("Category", "UnitTest")]` | Categorise tests |
-| `[Trait("Category", "BoundaryValue")]` | Tag boundary tests |
-| `[Trait("Category", "DecisionTable")]` | Tag decision table tests |
-| `[Trait("Category", "SliceTest")]` | Tag slice / integration-style tests |
+| `[Trait("Category", "Unit")]` | Unit tests |
+| `[Trait("Category", "Integration")]` | Integration tests (require Supabase) |
+| `[Trait("Category", "BoundaryValue")]` | Boundary tests |
+| `[Trait("Category", "DecisionTable")]` | Decision table tests |
+| `[Trait("Category", "SliceTest")]` | Slice tests |
 
-### 11.4 AAA Pattern
+### 11.4 Running Test Categories Separately
 
-Every test follows Arrange–Act–Assert:
+```bash
+# Unit tests only (no Supabase required)
+dotnet test --filter "Category=Unit"
+
+# Integration tests only (requires running Supabase)
+dotnet test --filter "Category=Integration"
+
+# All tests
+dotnet test
+```
+
+### 11.5 AAA Pattern
+
+Every test follows Arrange-Act-Assert:
 
 ```csharp
-// Arrange — create inputs, configure mocks
+// Arrange — create inputs, configure mocks (or set up Supabase state)
 // Act — call the method under test
 // Assert — verify the result
 ```
@@ -965,21 +1090,22 @@ Every test follows Arrange–Act–Assert:
 | Component | Fixture? | Mocks? | Primary Strategy | Why |
 |-----------|----------|--------|-----------------|-----|
 | `Result` / `Result<T>` | No | No | Unit test + OOP | Simple factories; test polymorphism |
-| `EncryptedBlob` | No | No | ECT + BVA + Slice | Input partitions for `FromBase64String`; round-trip slice |
+| `EncryptedBlob` | **Yes** (`EncryptedBlobFixture`) | No | ECT + BVA + Slice | Pre-built test scenarios; round-trip slice |
 | `PasswordOptions` | No | No | Unit test | Pure POCO defaults |
 | `VaultEntry` | No | No | Unit test + OOP | POCO + init-only verification |
 | `VaultEntryPayload` | No | No | ECT + Slice | JSON parse partitions; round-trip slice |
 | `PasswordPolicy` | No | No | Unit test | Constants verification |
-| All 6 Validators | No | No | **ECT + BVA** | Validators are classifiers — ECT is the natural fit |
-| `PasswordOptionsValidator` | No | No | **Decision table** | Boolean conditions create a truth table |
-| `CryptoService` | **Yes** (`CryptoServiceFixture`) | No | Unit + Decision table + Slice | Fixture for expensive key derivation; decision table for `GeneratePassword` flags; slice for encrypt/decrypt round-trip |
-| `SessionService` | No (fresh per test) | No | **State-based + OOP** | Stateful service with lifecycle; IDisposable contract |
-| `VaultService` | Helper setup | **Yes** (4 mocks) | Unit test + ECT | Orchestrator — mock all deps to test logic in isolation |
-| `UserProfileService` | No | **Yes** (1 mock) | Unit test | Thin wrapper — mock repository for exception paths |
-| `ZxcvbnPasswordStrengthChecker` | No | No | ECT + BVA | Strength categories are equivalence classes |
-| `SupabaseExceptionMapper` | No | No | **Decision table** | Status code × message content → output mapping |
+| All 6 Validators | No | No | **ECT + BVA** | Validators are classifiers |
+| `PasswordOptionsValidator` | No | No | **Decision table** | Boolean conditions form truth table |
+| `CryptoService` | **Yes** (`CryptoServiceFixture`) | No | Unit + Slice | Expensive Argon2; encrypt/decrypt round-trip |
+| `PasswordGenerator` | No | No | **Decision table + BVA** | Boolean flag combos; length boundaries |
+| `SessionService` | No (fresh per test) | No | **State-based + OOP** | Stateful lifecycle; IDisposable |
+| `VaultService` | **Yes** (`VaultServiceFixture`) | **Yes** (4 mocks) | Unit test + ECT | Orchestrator — mock deps |
+| `UserProfileService` | No | **Yes** (1 mock) | Unit test | Thin wrapper — mock repo |
+| `ZxcvbnPasswordStrengthChecker` | - | - | **Excluded** | `[ExcludeFromCodeCoverage]` |
+| `SupabaseExceptionMapper` | No | No | **Decision table** | Status code x message -> output |
 | `VaultEntryExtensions` | No | No | Unit + ECT + Slice | Pure mappers; null handling; round-trip |
-| `AuthService` | — | Limited | ECT (validation only) | Supabase dependency limits unit testing |
-| `VaultRepository` | — | — | **Skip (integration test)** | Pure data access; mocking adds no value |
+| **`AuthService`** | **Yes** (`SupabaseFixture`) | **No** (real Supabase) | **Integration test** | Concrete Supabase dependency; full auth flow with DB triggers and RLS |
+| **`VaultRepository`** | **Yes** (`SupabaseFixture`) | **No** (real Supabase) | **Integration test** | Thin data-access layer; real Postgrest + RLS policies |
 
-**Total estimated test cases: ~170**
+**Total estimated test cases: ~200+** (including integration tests)

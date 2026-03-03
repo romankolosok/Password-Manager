@@ -19,17 +19,43 @@ namespace PasswordManager.App
         {
             base.OnStartup(e);
 
-            // STEP 1: Build configuration
+            // STEP 1: Build configuration (supports environment-specific overrides and build config)
+            var environment =
+                Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+                ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+
+            // If no explicit environment is set, fall back to build configuration:
+            // - Debug build => Development (local Supabase)
+            // - Release build => Production (cloud Supabase)
+#if DEBUG
+            environment ??= "Development";
+#else
+            environment ??= "Production";
+#endif
+
             IConfiguration configuration = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: true)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true)
+                .AddEnvironmentVariables()
                 .AddUserSecrets<App>()
                 .Build();
 
-            string? supabaseUrl = configuration["Supabase:Url"];
-            string? supabaseAnonKey = configuration["Supabase:AnonKey"];
+            // Prefer environment variables (for CI) but fall back to configuration files.
+            string? supabaseUrl =
+                Environment.GetEnvironmentVariable("Supabase__Url") ??
+                configuration["Supabase:Url"];
+
+            string? supabaseAnonKey =
+                Environment.GetEnvironmentVariable("Supabase__AnonKey") ??
+                configuration["Supabase:AnonKey"];
+
             if (string.IsNullOrEmpty(supabaseUrl) || string.IsNullOrEmpty(supabaseAnonKey))
-                throw new InvalidOperationException("Supabase:Url and Supabase:AnonKey must be set in appsettings.json.");
+            {
+                throw new InvalidOperationException(
+                    "Supabase configuration is missing. Ensure Supabase:Url and Supabase:AnonKey are set " +
+                    "in appsettings.json / appsettings.{Environment}.json or via Supabase__Url and Supabase__AnonKey environment variables.");
+            }
 
             // Create service collection and register everything
             var services = new ServiceCollection();

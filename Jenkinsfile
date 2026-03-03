@@ -41,13 +41,11 @@ pipeline {
                     # Ensure we always start from a clean schema for this CI run.
                     supabase db reset
 
-                    # Load Supabase CLI .env and expose settings in ASP.NET-friendly variables.
-                    set -a
-                    . supabase/.env
+                    # Export Supabase connection settings from CLI status (portable across CLI versions).
+                    eval "$(supabase status --output env)"
                     export Supabase__Url="$SUPABASE_URL"
                     export Supabase__AnonKey="$SUPABASE_ANON_KEY"
                     export Supabase__ServiceRoleKey="$SUPABASE_SERVICE_ROLE_KEY"
-                    set +a
 
                     # Run tests with coverage; configuration picks up Supabase* settings from env.
                     dotnet test ${TESTS_PROJECT_PATH} --configuration Release --no-build --logger "junit;LogFilePath=test-results.xml" /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=coverage.cobertura.xml

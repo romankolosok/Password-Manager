@@ -325,5 +325,439 @@ namespace PasswordManager.Tests.Services
             Assert.False(result.Success);
             Assert.Equal("Failed to retrieve entry", result.Message);
         }
+
+        [Fact]
+        public async Task AddEntryAsyncReturnsFailureWhenSessionIsInactive()
+        {
+            _fixture.Reset();
+            _fixture.SetupInactiveSession();
+
+            var entry = new VaultEntry
+            {
+                Id = Guid.NewGuid(),
+                WebsiteName = TestData.WebsiteName(),
+                Username = TestData.Username(),
+                Password = TestData.Password(),
+                Url = TestData.Url(),
+                Notes = TestData.Notes(),
+                Category = TestData.Category(),
+                IsFavorite = false,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            var result = await _fixture
+                .CreateService()
+                .AddEntryAsync(entry);
+
+            Assert.False(result.Success);
+            Assert.Equal("Vault is locked", result.Message);
+        }
+
+        [Fact]
+        public async Task AddEntryAsyncGeneratesIdAndTimestampsWhenEntryIsNew()
+        {
+            _fixture.Reset();
+
+            var userId = TestData.UserId();
+            _fixture.SetupActiveSession(userId);
+
+            // entry with empty Id and default CreatedAt signals a new entry
+            var entry = new VaultEntry
+            {
+                Id = Guid.Empty,
+                WebsiteName = TestData.WebsiteName(),
+                Username = TestData.Username(),
+                Password = TestData.Password(),
+                Url = TestData.Url(),
+                Notes = TestData.Notes(),
+                Category = TestData.Category(),
+                IsFavorite = false,
+                CreatedAt = default,
+            };
+
+            _fixture.CryptoService
+                .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(Result<EncryptedBlob>.Ok(new EncryptedBlob
+                {
+                    Nonce = new byte[12],
+                    Ciphertext = new byte[1],
+                    Tag = new byte[16]
+                }));
+
+            VaultEntryEntity? savedEntity = null;
+            _fixture.VaultRepository
+                .Setup(r => r.UpsertEntryAsync(It.IsAny<VaultEntryEntity>()))
+                .Callback<VaultEntryEntity>(e => savedEntity = e)
+                .Returns(Task.CompletedTask);
+
+            var beforeCall = DateTime.UtcNow;
+
+            var result = await _fixture
+                .CreateService()
+                .AddEntryAsync(entry);
+
+            var afterCall = DateTime.UtcNow;
+
+            Assert.True(result.Success);
+            Assert.NotNull(savedEntity);
+            Assert.NotEqual(Guid.Empty, savedEntity!.Id);
+
+            Assert.InRange(savedEntity.CreatedAt, beforeCall, afterCall);
+            Assert.InRange(savedEntity.UpdatedAt, beforeCall, afterCall);
+        }
+
+        [Fact]
+        public async Task AddEntryAsyncKeepsIdAndCreatedAtWhenEntryExists()
+        {
+            _fixture.Reset();
+
+            var userId = TestData.UserId();
+            _fixture.SetupActiveSession(userId);
+
+            // entry with empty Id and default CreatedAt signals a new entry
+            var entry = new VaultEntry
+            {
+                Id = Guid.NewGuid(),
+                WebsiteName = TestData.WebsiteName(),
+                Username = TestData.Username(),
+                Password = TestData.Password(),
+                Url = TestData.Url(),
+                Notes = TestData.Notes(),
+                Category = TestData.Category(),
+                IsFavorite = false,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            _fixture.CryptoService
+                .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(Result<EncryptedBlob>.Ok(new EncryptedBlob
+                {
+                    Nonce = new byte[12],
+                    Ciphertext = new byte[1],
+                    Tag = new byte[16]
+                }));
+
+            VaultEntryEntity? savedEntity = null;
+            _fixture.VaultRepository
+                .Setup(r => r.UpsertEntryAsync(It.IsAny<VaultEntryEntity>()))
+                .Callback<VaultEntryEntity>(e => savedEntity = e)
+                .Returns(Task.CompletedTask);
+
+            var beforeCall = DateTime.UtcNow;
+
+            var result = await _fixture
+                .CreateService()
+                .AddEntryAsync(entry);
+
+            var afterCall = DateTime.UtcNow;
+
+            Assert.True(result.Success);
+            Assert.NotNull(savedEntity);
+            Assert.Equal(entry.Id, savedEntity!.Id);
+
+            Assert.Equal(savedEntity.CreatedAt, entry.CreatedAt);
+            Assert.InRange(savedEntity.UpdatedAt, beforeCall, afterCall);
+        }
+
+        [Fact]
+        public async Task AddEntryAsyncReturnsFailureWhenEncryptionFails()
+        {
+            _fixture.Reset();
+
+            var userId = TestData.UserId();
+            _fixture.SetupActiveSession(userId);
+
+            // entry with empty Id and default CreatedAt signals a new entry
+            var entry = new VaultEntry
+            {
+                Id = Guid.NewGuid(),
+                WebsiteName = TestData.WebsiteName(),
+                Username = TestData.Username(),
+                Password = TestData.Password(),
+                Url = TestData.Url(),
+                Notes = TestData.Notes(),
+                Category = TestData.Category(),
+                IsFavorite = false,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            _fixture.CryptoService
+                .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(Result<EncryptedBlob>.Fail("encryption failed"));
+
+            var result = await _fixture
+                .CreateService()
+                .AddEntryAsync(entry);
+
+            Assert.False(result.Success);
+            Assert.Equal("encryption failed", result.Message);
+        }
+
+        [Fact]
+        public async Task AddEntryAsyncReturnsFailureWhenRepositoryThrows()
+        {
+            _fixture.Reset();
+
+            var userId = TestData.UserId();
+            _fixture.SetupActiveSession(userId);
+
+            var entry = new VaultEntry
+            {
+                Id = Guid.NewGuid(),
+                WebsiteName = TestData.WebsiteName(),
+                Username = TestData.Username(),
+                Password = TestData.Password(),
+                Url = TestData.Url(),
+                Notes = TestData.Notes(),
+                Category = TestData.Category(),
+                IsFavorite = false,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            _fixture.CryptoService
+                .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(Result<EncryptedBlob>.Ok(new EncryptedBlob
+                {
+                    Nonce = new byte[12],
+                    Ciphertext = new byte[1],
+                    Tag = new byte[16]
+                }));
+
+            _fixture.VaultRepository
+                .Setup(r => r.UpsertEntryAsync(It.IsAny<VaultEntryEntity>()))
+                .ThrowsAsync(new Exception("db unavailable"));
+
+            var result = await _fixture
+                .CreateService()
+                .AddEntryAsync(entry);
+
+            Assert.False(result.Success);
+            Assert.Equal("Failed to save entry", result.Message);
+        }
+
+        [Fact]
+        public async Task AddEntryAsyncReturnsOkWhenEntryIsSavedSuccessfully()
+        {
+            _fixture.Reset();
+
+            var userId = TestData.UserId();
+            _fixture.SetupActiveSession(userId);
+
+            var entry = new VaultEntry
+            {
+                Id = Guid.NewGuid(),
+                WebsiteName = TestData.WebsiteName(),
+                Username = TestData.Username(),
+                Password = TestData.Password(),
+                Url = TestData.Url(),
+                Notes = TestData.Notes(),
+                Category = TestData.Category(),
+                IsFavorite = false,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            _fixture.CryptoService
+                .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(Result<EncryptedBlob>.Ok(new EncryptedBlob
+                {
+                    Nonce = new byte[12],
+                    Ciphertext = new byte[1],
+                    Tag = new byte[16]
+                }));
+
+            _fixture.VaultRepository
+                .Setup(r => r.UpsertEntryAsync(It.IsAny<VaultEntryEntity>()))
+                .Returns(Task.CompletedTask);
+
+            var result = await _fixture
+                .CreateService()
+                .AddEntryAsync(entry);
+
+            Assert.True(result.Success);
+        }
+
+        [Fact]
+        public async Task DeleteEntryAsyncReturnsFailureWhenSessionIsInactive()
+        {
+            _fixture.Reset();
+            _fixture.SetupInactiveSession();
+
+            var result = await _fixture
+                .CreateService()
+                .DeleteEntryAsync(Guid.NewGuid().ToString());
+
+            Assert.False(result.Success);
+            Assert.Equal("Vault is locked", result.Message);
+        }
+
+        [Fact]
+        public async Task DeleteEntryAsyncReturnsFailureWhenEntryIdIsInvalid()
+        {
+            _fixture.Reset();
+
+            var userId = TestData.UserId();
+            _fixture.SetupActiveSession(userId);
+
+            var result = await _fixture
+                .CreateService()
+                .DeleteEntryAsync("!!not-valid-guid!!");
+
+            Assert.False(result.Success);
+            Assert.Equal("Invalid entry id", result.Message);
+        }
+
+        [Fact]
+        public async Task DeleteEntryAsyncReturnsOkWhenEntryDeletedSuccessfully()
+        {
+            _fixture.Reset();
+
+            var userId = TestData.UserId();
+            var entryId = Guid.NewGuid();
+            _fixture.SetupActiveSession(userId);
+
+            _fixture.VaultRepository
+                .Setup(r => r.DeleteEntryAsync(userId, entryId))
+                .Returns(Task.CompletedTask);
+
+            var result = await _fixture
+                .CreateService()
+                .DeleteEntryAsync(entryId.ToString());
+
+            Assert.True(result.Success);
+        }
+
+        [Fact]
+        public async Task DeleteEntryAsyncReturnsFailureWhenRepositoryThrows()
+        {
+            _fixture.Reset();
+
+            var userId = TestData.UserId();
+            var entryId = Guid.NewGuid();
+            _fixture.SetupActiveSession(userId);
+
+            _fixture.VaultRepository
+                .Setup(r => r.DeleteEntryAsync(userId, entryId))
+                .ThrowsAsync(new Exception("db unavailable"));
+
+            var result = await _fixture
+                .CreateService()
+                .DeleteEntryAsync(entryId.ToString());
+
+            Assert.False(result.Success);
+            Assert.Equal("Failed to delete entry", result.Message);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void SearchEntriesReturnsAllEntriesWhenQueryIsNullOrWhitespace(string? query)
+        {
+            var entries = new List<VaultEntry>
+            {
+                new() { WebsiteName = "GitHub",  Username = "alice" },
+                new() { WebsiteName = "Google",  Username = "bob"   },
+            };
+
+            var result = _fixture.CreateService().SearchEntries(query!, entries);
+
+            Assert.Equal(entries, result);
+        }
+
+        [Fact]
+        public void SearchEntriesReturnsMatchingEntryWhenQueryMatchesWebsiteName()
+        {
+            var match = new VaultEntry { WebsiteName = "GitHub" };
+            var noMatch = new VaultEntry { WebsiteName = "Google" };
+
+            var result = _fixture.CreateService().SearchEntries("github", new List<VaultEntry> { match, noMatch });
+
+            Assert.Single(result);
+            Assert.Equal(match, result[0]);
+        }
+
+        [Fact]
+        public void SearchEntriesReturnsMatchingEntryWhenQueryMatchesUsername()
+        {
+            var match = new VaultEntry { Username = "alice" };
+            var noMatch = new VaultEntry { Username = "bob" };
+
+            var result = _fixture.CreateService().SearchEntries("alice", new List<VaultEntry> { match, noMatch });
+
+            Assert.Single(result);
+            Assert.Equal(match, result[0]);
+        }
+
+        [Fact]
+        public void SearchEntriesReturnsMatchingEntryWhenQueryMatchesUrl()
+        {
+            var match = new VaultEntry { Url = "https://github.com" };
+            var noMatch = new VaultEntry { Url = "https://google.com" };
+
+            var result = _fixture.CreateService().SearchEntries("github", new List<VaultEntry> { match, noMatch });
+
+            Assert.Single(result);
+            Assert.Equal(match, result[0]);
+        }
+
+        [Fact]
+        public void SearchEntriesReturnsMatchingEntryWhenQueryMatchesNotes()
+        {
+            var match = new VaultEntry { Notes = "work account" };
+            var noMatch = new VaultEntry { Notes = "personal account" };
+
+            var result = _fixture.CreateService().SearchEntries("work", new List<VaultEntry> { match, noMatch });
+
+            Assert.Single(result);
+            Assert.Equal(match, result[0]);
+        }
+
+        [Fact]
+        public void SearchEntriesReturnsMatchingEntryWhenQueryMatchesCategory()
+        {
+            var match = new VaultEntry { Category = "Finance" };
+            var noMatch = new VaultEntry { Category = "Social" };
+
+            var result = _fixture.CreateService().SearchEntries("finance", new List<VaultEntry> { match, noMatch });
+
+            Assert.Single(result);
+            Assert.Equal(match, result[0]);
+        }
+
+        [Fact]
+        public void SearchEntriesReturnsEmptyListWhenNoEntriesMatch()
+        {
+            var entries = new List<VaultEntry>
+            {
+                new() { WebsiteName = "GitHub",  Username = "alice" },
+                new() { WebsiteName = "Google",  Username = "bob"   },
+            };
+
+            var result = _fixture.CreateService().SearchEntries("nomatch", entries);
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void SearchEntriesMatchesCaseInsensitively()
+        {
+            var entry = new VaultEntry { WebsiteName = "GitHub" };
+
+            var result = _fixture.CreateService().SearchEntries("GITHUB", new List<VaultEntry> { entry });
+
+            Assert.Single(result);
+            Assert.Equal(entry, result[0]);
+        }
+
+        [Fact]
+        public void SearchEntriesIgnoresLeadingAndTrailingWhitespaceInQuery()
+        {
+            var entry = new VaultEntry { WebsiteName = "GitHub" };
+
+            var result = _fixture.CreateService().SearchEntries("  github  ", new List<VaultEntry> { entry });
+
+            Assert.Single(result);
+            Assert.Equal(entry, result[0]);
+        }
     }
 }

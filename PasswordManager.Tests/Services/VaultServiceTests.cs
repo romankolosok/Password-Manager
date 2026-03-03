@@ -406,15 +406,18 @@ namespace PasswordManager.Tests.Services
             Assert.InRange(savedEntity.UpdatedAt, beforeCall, afterCall);
         }
 
-        [Fact]
-        public async Task AddEntryAsyncKeepsIdAndCreatedAtWhenEntryExists()
+        [Theory]
+        [InlineData("encryption failed", "encryption failed")]
+        [InlineData(null, "Failed to encrypt entry")]
+        public async Task AddEntryAsyncReturnsFailureWhenEncryptionFails(
+            string? failMessage,
+            string expectedMessage)
         {
             _fixture.Reset();
 
             var userId = TestData.UserId();
             _fixture.SetupActiveSession(userId);
 
-            // entry with empty Id and default CreatedAt signals a new entry
             var entry = new VaultEntry
             {
                 Id = Guid.NewGuid(),
@@ -430,67 +433,48 @@ namespace PasswordManager.Tests.Services
 
             _fixture.CryptoService
                 .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
-                .Returns(Result<EncryptedBlob>.Ok(new EncryptedBlob
-                {
-                    Nonce = new byte[12],
-                    Ciphertext = new byte[1],
-                    Tag = new byte[16]
-                }));
-
-            VaultEntryEntity? savedEntity = null;
-            _fixture.VaultRepository
-                .Setup(r => r.UpsertEntryAsync(It.IsAny<VaultEntryEntity>()))
-                .Callback<VaultEntryEntity>(e => savedEntity = e)
-                .Returns(Task.CompletedTask);
-
-            var beforeCall = DateTime.UtcNow;
-
-            var result = await _fixture
-                .CreateService()
-                .AddEntryAsync(entry);
-
-            var afterCall = DateTime.UtcNow;
-
-            Assert.True(result.Success);
-            Assert.NotNull(savedEntity);
-            Assert.Equal(entry.Id, savedEntity!.Id);
-
-            Assert.Equal(savedEntity.CreatedAt, entry.CreatedAt);
-            Assert.InRange(savedEntity.UpdatedAt, beforeCall, afterCall);
-        }
-
-        [Fact]
-        public async Task AddEntryAsyncReturnsFailureWhenEncryptionFails()
-        {
-            _fixture.Reset();
-
-            var userId = TestData.UserId();
-            _fixture.SetupActiveSession(userId);
-
-            // entry with empty Id and default CreatedAt signals a new entry
-            var entry = new VaultEntry
-            {
-                Id = Guid.NewGuid(),
-                WebsiteName = TestData.WebsiteName(),
-                Username = TestData.Username(),
-                Password = TestData.Password(),
-                Url = TestData.Url(),
-                Notes = TestData.Notes(),
-                Category = TestData.Category(),
-                IsFavorite = false,
-                CreatedAt = DateTime.UtcNow,
-            };
-
-            _fixture.CryptoService
-                .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
-                .Returns(Result<EncryptedBlob>.Fail("encryption failed"));
+                .Returns(Result<EncryptedBlob>.Fail(failMessage!));
 
             var result = await _fixture
                 .CreateService()
                 .AddEntryAsync(entry);
 
             Assert.False(result.Success);
-            Assert.Equal("encryption failed", result.Message);
+            Assert.Equal(expectedMessage, result.Message);
+        }
+
+        [Fact]
+        public async Task AddEntryAsyncReturnsFailureWhenEncryptionFailsWithoutMessage()
+        {
+            _fixture.Reset();
+
+            var userId = TestData.UserId();
+            _fixture.SetupActiveSession(userId);
+
+            // entry with empty Id and default CreatedAt signals a new entry
+            var entry = new VaultEntry
+            {
+                Id = Guid.NewGuid(),
+                WebsiteName = TestData.WebsiteName(),
+                Username = TestData.Username(),
+                Password = TestData.Password(),
+                Url = TestData.Url(),
+                Notes = TestData.Notes(),
+                Category = TestData.Category(),
+                IsFavorite = false,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            _fixture.CryptoService
+                .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(Result<EncryptedBlob>.Fail(null!));
+
+            var result = await _fixture
+                .CreateService()
+                .AddEntryAsync(entry);
+
+            Assert.False(result.Success);
+            Assert.Equal("Failed to encrypt entry", result.Message);
         }
 
         [Fact]

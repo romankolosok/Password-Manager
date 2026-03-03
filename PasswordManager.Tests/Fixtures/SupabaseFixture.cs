@@ -148,6 +148,7 @@ namespace PasswordManager.Tests.Fixtures
             return new ConfigurationBuilder()
                 .SetBasePath(basePath)
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+                .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: false)
                 .AddEnvironmentVariables()
                 .Build();
         }

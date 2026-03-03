@@ -34,12 +34,13 @@ namespace PasswordManager.Tests.Fixtures
         public async Task InitializeAsync()
         {
             var config = BuildTestConfiguration();
+            const string configHint =
+                "For local integration tests: run 'supabase start', then either (1) set env vars Supabase__Url, Supabase__AnonKey, Supabase__ServiceRoleKey from 'supabase status' output, or (2) add PasswordManager.Tests/appsettings.Development.json (gitignored) with Supabase:Url, Supabase:AnonKey, Supabase:ServiceRoleKey. See appsettings.Example.json in the test project.";
+
             var supabaseUrl = GetSupabaseSetting(config, "Url")
-                ?? throw new InvalidOperationException(
-                    "Supabase URL is not set. Set Supabase__Url (env) or add Supabase:Url in appsettings.json (test project).");
+                ?? throw new InvalidOperationException($"Supabase URL is not set. {configHint}");
             var supabaseAnonKey = GetSupabaseSetting(config, "AnonKey")
-                ?? throw new InvalidOperationException(
-                    "Supabase AnonKey is not set. Set Supabase__AnonKey (env) or add Supabase:AnonKey in appsettings.json (test project).");
+                ?? throw new InvalidOperationException($"Supabase AnonKey is not set. {configHint}");
 
             var options = new Supabase.SupabaseOptions
             {

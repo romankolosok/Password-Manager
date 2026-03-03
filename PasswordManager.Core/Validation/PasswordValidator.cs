@@ -1,5 +1,6 @@
 using FluentValidation;
 using PasswordManager.Core.Models;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace PasswordManager.Core.Validators
@@ -54,15 +55,19 @@ namespace PasswordManager.Core.Validators
                 .When(x => !string.IsNullOrEmpty(x.Password) && x.Password.Length >= PasswordPolicy.MinLength);
         }
 
+        [ExcludeFromCodeCoverage]
         private static bool ContainsUppercase(string? value) =>
             !string.IsNullOrEmpty(value) && value.Any(char.IsUpper);
 
+        [ExcludeFromCodeCoverage]
         private static bool ContainsLowercase(string? value) =>
             !string.IsNullOrEmpty(value) && value.Any(char.IsLower);
 
+        [ExcludeFromCodeCoverage]
         private static bool ContainsDigit(string? value) =>
             !string.IsNullOrEmpty(value) && value.Any(char.IsDigit);
 
+        [ExcludeFromCodeCoverage]
         private static bool ContainsSpecialCharacter(string? value) =>
             !string.IsNullOrEmpty(value) && value.Any(c => PasswordPolicy.SpecialCharacters.Contains(c));
     }

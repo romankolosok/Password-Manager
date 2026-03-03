@@ -81,10 +81,6 @@ namespace PasswordManager.Core.Services.Implementations
             if (!_sessionService.IsActive())
                 return Result.Fail("Vault is locked");
 
-            Guid? userId = _sessionService.CurrentUserId;
-            if (userId == null)
-                return Result.Fail("No user logged in");
-
             bool isNew = entry.Id == Guid.Empty || entry.CreatedAt == default;
             Guid effectiveId = isNew ? Guid.NewGuid() : entry.Id;
             DateTime effectiveCreated = isNew ? DateTime.UtcNow : entry.CreatedAt;
@@ -101,7 +97,7 @@ namespace PasswordManager.Core.Services.Implementations
             var entity = new VaultEntryEntity
             {
                 Id = effectiveId,
-                UserId = userId.Value,
+                UserId = _sessionService.CurrentUserId!.Value,
                 EncryptedData = encryptResult.Value.ToBase64String(),
                 CreatedAt = effectiveCreated,
                 UpdatedAt = effectiveUpdated

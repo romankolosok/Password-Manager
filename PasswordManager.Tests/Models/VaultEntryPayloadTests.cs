@@ -4,6 +4,17 @@ namespace PasswordManager.Tests.Models
 {
     public class VaultEntryPayloadTests
     {
+        private static VaultEntryPayload CreateDefault() => new()
+        {
+            WebsiteName = "Example Site",
+            Username = "user123",
+            Password = "passw0rd!",
+            Url = "https://example.com",
+            Notes = "Some notes.",
+            Category = "Social",
+            IsFavorite = true
+        };
+
         // Round-trip preserves all fields
         [Fact]
         public void TestVaultEntryPayloadRoundTripPreservesAllFields()
@@ -60,6 +71,36 @@ namespace PasswordManager.Tests.Models
             Assert.Equal(string.Empty, deserialized.Notes);
             Assert.Equal(string.Empty, deserialized.Category);
             Assert.False(deserialized.IsFavorite);
+        }
+
+        [Fact]
+        public void EqualPayloadsAreEqual()
+        {
+            var a = CreateDefault();
+            var b = CreateDefault();
+
+            Assert.Equal(a, b);
+            Assert.Equal(a.GetHashCode(), b.GetHashCode());
+        }
+
+        [Fact]
+        public void DifferentPayloadsAreNotEqual()
+        {
+            var a = CreateDefault();
+            var b = a with { Password = "different" };
+
+            Assert.NotEqual(a, b);
+        }
+
+        [Fact]
+        public void ToStringContainsPropertyValues()
+        {
+            var payload = CreateDefault();
+
+            var text = payload.ToString();
+
+            Assert.Contains(payload.WebsiteName, text);
+            Assert.Contains(payload.Username, text);
         }
     }
 }

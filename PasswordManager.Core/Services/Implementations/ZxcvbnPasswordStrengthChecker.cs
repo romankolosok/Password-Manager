@@ -1,7 +1,9 @@
 ﻿using PasswordManager.Core.Services.Interfaces;
+using System.Diagnostics.CodeAnalysis;
 
 namespace PasswordManager.Core.Services.Implementations
 {
+    [ExcludeFromCodeCoverage]
     public class ZxcvbnPasswordStrengthChecker : IPasswordStrengthChecker
     {
         public int CheckStrength(string password)

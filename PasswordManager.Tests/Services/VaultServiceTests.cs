@@ -743,5 +743,28 @@ namespace PasswordManager.Tests.Services
             Assert.Single(result);
             Assert.Equal(entry, result[0]);
         }
+
+        [Fact]
+        public void SearchEntriesSkipsNullFieldsWithoutThrowing()
+        {
+            // All searchable fields are null — should not match and must not throw.
+            var nullFieldsEntry = new VaultEntry
+            {
+                WebsiteName = null,
+                Username = null,
+                Url = null,
+                Notes = null,
+                Category = null,
+            };
+
+            var matchingEntry = new VaultEntry { WebsiteName = "GitHub" };
+
+            var result = _fixture.CreateService().SearchEntries(
+                "github",
+                new List<VaultEntry> { nullFieldsEntry, matchingEntry });
+
+            Assert.Single(result);
+            Assert.Equal(matchingEntry, result[0]);
+        }
     }
 }

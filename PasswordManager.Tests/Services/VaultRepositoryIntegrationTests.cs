@@ -3,6 +3,7 @@ using PasswordManager.Tests.Fixtures;
 
 namespace PasswordManager.Tests.Services
 {
+    [Collection("Supabase")]
     public class VaultRepositoryIntegrationTests : IClassFixture<SupabaseFixture>, IAsyncLifetime
     {
         private readonly SupabaseFixture _fixture;

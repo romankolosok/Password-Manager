@@ -1,4 +1,4 @@
-﻿using PasswordManager.Core.Services.Implementations;
+using PasswordManager.Core.Services.Implementations;
 
 namespace PasswordManager.Tests.Services
 {
@@ -342,6 +342,35 @@ namespace PasswordManager.Tests.Services
         {
             Assert.Throws<ArgumentOutOfRangeException>(() =>
                 _sessionService.InactivityTimeout = TimeSpan.FromMilliseconds(milliseconds));
+        }
+
+        [Fact]
+        public void InactivityTimerElapsedClearsSession()
+        {
+            _sessionService.InactivityTimeout = TimeSpan.FromMilliseconds(100);
+            _sessionService.SetDerivedKey(new byte[32]);
+            _sessionService.SetUser(Guid.NewGuid(), "a@a.x", "token");
+
+            Thread.Sleep(300);
+
+            Assert.False(_sessionService.IsActive());
+            Assert.Null(_sessionService.CurrentUserId);
+            Assert.Null(_sessionService.CurrentUserEmail);
+            Assert.Null(_sessionService.GetAccessToken());
+        }
+
+        [Fact]
+        public void InactivityTimerElapsedRaisesVaultLockedEvent()
+        {
+            var eventRaised = false;
+            _sessionService.VaultLocked += (s, e) => eventRaised = true;
+
+            _sessionService.InactivityTimeout = TimeSpan.FromMilliseconds(100);
+            _sessionService.SetDerivedKey(new byte[32]);
+
+            Thread.Sleep(300);
+
+            Assert.True(eventRaised);
         }
 
     }

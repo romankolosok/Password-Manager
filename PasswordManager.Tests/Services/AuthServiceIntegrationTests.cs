@@ -1,4 +1,4 @@
-﻿using PasswordManager.Core.Models;
+using PasswordManager.Core.Models;
 using PasswordManager.Tests.Fixtures;
 
 namespace PasswordManager.Tests.Services
@@ -18,6 +18,35 @@ namespace PasswordManager.Tests.Services
         {
             // Leave the fixture in a neutral state after every test
             await _fixture.AuthService.LockAsync();
+        }
+
+        [Theory]
+        [InlineData("", "Email cannot be empty.")]
+        [InlineData("not-an-email", "Email must be a valid email address.")]
+        [InlineData("missing@tld", "Email must be a valid email address.")]
+        public async Task RegisterAsyncReturnsFailureWhenEmailIsInvalid(string email, string expectedMessage)
+        {
+            var result = await _fixture.AuthService.RegisterAsync(email, "ValidPassword1!");
+
+            Assert.False(result.Success);
+            Assert.Contains(expectedMessage, result.Message);
+        }
+
+        [Theory]
+        [InlineData("", "Password cannot be empty.")]
+        [InlineData("Ab1!", "Password must be at least 12 characters.")]
+        [InlineData("abcdefghij1!", "Password must contain at least one uppercase letter.")]
+        [InlineData("ABCDEFGHIJ1!", "Password must contain at least one lowercase letter.")]
+        [InlineData("Abcdefghijkl!", "Password must contain at least one digit.")]
+        [InlineData("Abcdefghijk1", "Password must contain at least one special character")]
+        public async Task RegisterAsyncReturnsFailureWhenPasswordIsInvalid(string password, string expectedMessage)
+        {
+            var email = _fixture.GenerateUniqueEmail();
+
+            var result = await _fixture.AuthService.RegisterAsync(email, password);
+
+            Assert.False(result.Success);
+            Assert.Contains(expectedMessage, result.Message);
         }
 
         [Fact]
@@ -64,5 +93,137 @@ namespace PasswordManager.Tests.Services
             var decryptResult = _fixture.CryptoService.Decrypt(blobResult.Value, derivedKey);
             Assert.True(decryptResult.Success, "Verification token decryption failed — key mismatch");
         }
+
+        [Fact]
+        public async Task RegisterAsyncWithExistingEmailReturnsFailure()
+        {
+            var email = _fixture.GenerateUniqueEmail();
+            var password = "IntegrationTest1!";
+
+            var firstResult = await _fixture.AuthService.RegisterAsync(email, password);
+            Assert.True(firstResult.Success, $"First RegisterAsync failed: {firstResult.Message}");
+
+            var secondResult = await _fixture.AuthService.RegisterAsync(email, password);
+            Assert.False(secondResult.Success, "Second RegisterAsync with the same email should have failed");
+        }
+
+        [Fact]
+        public async Task LoginAsyncSetsSessionStateAndDerivedKey()
+        {
+            // Arrange — register a user first
+            var email = _fixture.GenerateUniqueEmail();
+            var password = "IntegrationTest1!";
+
+            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
+            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
+
+            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
+            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
+
+            var userId = _fixture.SessionService.CurrentUserId;
+            Assert.NotNull(userId);
+            Assert.Equal(email, _fixture.SessionService.CurrentUserEmail);
+
+            Assert.True(_fixture.SessionService.IsActive(), "Session should be active after login");
+
+            // derived key is a 32-byte AES-256 key
+            var derivedKey = _fixture.SessionService.GetDerivedKey();
+            Assert.NotNull(derivedKey);
+            Assert.Equal(32, derivedKey.Length);
+        }
+
+        [Fact]
+        public async Task LoginAsyncReturnsFailureWhenUsingWrongMasterPassword()
+        {
+            var email = _fixture.GenerateUniqueEmail();
+            var password = "IntegrationTest1!";
+
+            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
+            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
+
+            var loginResult = await _fixture.AuthService
+                .LoginAsync(email, string.Concat(password.Reverse()));
+            Assert.False(loginResult.Success, $"LoginAsync should fail with invalid master password");
+            Assert.Equal("Invalid email or password.", loginResult.Message);
+
+            Assert.Null(_fixture.SessionService.CurrentUserId);
+            Assert.Null(_fixture.SessionService.CurrentUserEmail);
+            Assert.False(_fixture.SessionService.IsActive(), "Session should not be active after failed login");
+        }
+
+        [Fact]
+        public async Task LoginAsyncReturnsFailureWhenUsingNonExistingUser()
+        {
+            var email = _fixture.GenerateUniqueEmail();
+            var password = "IntegrationTest1!";
+
+            var loginResult = await _fixture.AuthService
+                .LoginAsync(email, password);
+            Assert.False(loginResult.Success, "LoginAsync should fail for non-existent user");
+            Assert.Equal("Invalid email or password.", loginResult.Message);
+
+            Assert.Null(_fixture.SessionService.CurrentUserId);
+            Assert.Null(_fixture.SessionService.CurrentUserEmail);
+            Assert.False(_fixture.SessionService.IsActive(), "Session should not be active after failed login");
+        }
+
+        [Fact]
+        public async Task LoginAsyncReturnsFailureWhenProfileRowIsMissing()
+        {
+            // register normally, then delete the profile row to simulate a trigger failure or manual data corruption
+            var email = _fixture.GenerateUniqueEmail();
+            var password = "IntegrationTest1!";
+
+            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
+            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
+
+            // Log in once to get the userId, then lock
+            var firstLogin = await _fixture.AuthService.LoginAsync(email, password);
+            Assert.True(firstLogin.Success, $"First LoginAsync failed: {firstLogin.Message}");
+            var userId = _fixture.SessionService.CurrentUserId!.Value;
+            await _fixture.AuthService.LockAsync();
+
+            // Delete the profile row using an admin client so RLS cannot block the delete,
+            // simulating a missing profile while the auth user still exists.
+            if (_fixture.AdminSupabaseClient is null)
+            {
+                throw new InvalidOperationException(
+                    "AdminSupabaseClient is not configured. Set Supabase__ServiceRoleKey (or equivalent) to run this integration test.");
+            }
+
+            await _fixture.AdminSupabaseClient
+                .From<PasswordManager.Core.Entities.UserProfileEntity>()
+                .Where(p => p.Id == userId)
+                .Delete();
+
+            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
+
+            Assert.False(loginResult.Success);
+            Assert.Equal("User profile not found.", loginResult.Message);
+        }
+
+        [Fact]
+        public async Task LockAsyncClearsSessionAndIsLockedReturnsTrue()
+        {
+            var email = _fixture.GenerateUniqueEmail();
+            var password = "IntegrationTest1!";
+
+            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
+            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
+            Assert.True(_fixture.AuthService.IsLocked(), "New session should start in locked state");
+
+            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
+            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
+            Assert.False(_fixture.AuthService.IsLocked(), "Session should be unlocked after successful login");
+
+            await _fixture.AuthService.LockAsync();
+
+            Assert.True(_fixture.AuthService.IsLocked(), "IsLocked should return true after LockAsync");
+            Assert.False(_fixture.SessionService.IsActive(), "Session should be inactive after LockAsync");
+            Assert.Null(_fixture.SessionService.CurrentUserId);
+            Assert.Null(_fixture.SessionService.CurrentUserEmail);
+        }
+
+
     }
 }

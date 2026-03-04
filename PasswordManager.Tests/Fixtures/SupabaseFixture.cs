@@ -23,6 +23,11 @@ namespace PasswordManager.Tests.Fixtures
         private int _emailCounter;
 
         public Supabase.Client SupabaseClient { get; private set; } = null!;
+        /// <summary>
+        /// Supabase client initialised with the service role key, if available.
+        /// Used by integration tests that need to bypass RLS (e.g. deleting profile rows).
+        /// </summary>
+        public Supabase.Client? AdminSupabaseClient { get; private set; }
         public CryptoService CryptoService { get; } = new();
         public SessionService SessionService { get; private set; } = null!;
         public VaultRepository VaultRepository { get; private set; } = null!;
@@ -41,6 +46,7 @@ namespace PasswordManager.Tests.Fixtures
                 ?? throw new InvalidOperationException($"Supabase URL is not set. {configHint}");
             var supabaseAnonKey = GetSupabaseSetting(config, "AnonKey")
                 ?? throw new InvalidOperationException($"Supabase AnonKey is not set. {configHint}");
+            var serviceRoleKey = GetSupabaseSetting(config, "ServiceRoleKey");
 
             var options = new Supabase.SupabaseOptions
             {
@@ -50,6 +56,19 @@ namespace PasswordManager.Tests.Fixtures
 
             SupabaseClient = new Supabase.Client(supabaseUrl, supabaseAnonKey, options);
             await SupabaseClient.InitializeAsync();
+
+            // Optional admin client for RLS-bypassing operations in tests (e.g. clean-up, data corruption scenarios).
+            if (!string.IsNullOrWhiteSpace(serviceRoleKey))
+            {
+                var adminOptions = new Supabase.SupabaseOptions
+                {
+                    AutoRefreshToken = false,
+                    AutoConnectRealtime = false
+                };
+
+                AdminSupabaseClient = new Supabase.Client(supabaseUrl, serviceRoleKey, adminOptions);
+                await AdminSupabaseClient.InitializeAsync();
+            }
 
             // Build the real dependency chain
             SessionService = new SessionService();

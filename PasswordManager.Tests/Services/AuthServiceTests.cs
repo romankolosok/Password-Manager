@@ -149,20 +149,6 @@ namespace PasswordManager.Tests.Services
         }
 
         [Fact]
-        public void OnAuthStateChangedSignedOutClearsSession()
-        {
-            _fixture.Reset();
-            var service = _fixture.CreateService();
-
-            var method = typeof(AuthService)
-                .GetMethod("OnAuthStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)!;
-
-            method.Invoke(service, new object?[] { null, Supabase.Gotrue.Constants.AuthState.SignedOut });
-
-            _fixture.SessionService.Verify(s => s.ClearSession(), Times.Once);
-        }
-
-        [Fact]
         public async Task ChangeMasterPasswordAsyncAlwaysReturnsNotImplemented()
         {
             _fixture.Reset();

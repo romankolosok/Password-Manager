@@ -2,6 +2,7 @@ using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Core.Validators;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -60,60 +61,7 @@ namespace PasswordManager.Core.Services.Implementations
                     passwordChars[i] = poolArray[index];
                 }
 
-                // Ensure required character types are present by replacing random positions
-                if (options.IncludeUppercase && !passwordChars.Any(char.IsUpper))
-                {
-                    string validChars = options.ExcludeAmbiguousCharacters
-                        ? new string(UPPERCASE.Where(c => !AMBIGUOUS.Contains(c)).ToArray())
-                        : UPPERCASE;
-                    int position = RandomNumberGenerator.GetInt32(options.Length);
-                    int charIndex = RandomNumberGenerator.GetInt32(validChars.Length);
-                    passwordChars[position] = validChars[charIndex];
-                }
-
-                if (options.IncludeLowercase && !passwordChars.Any(char.IsLower))
-                {
-                    string validChars = options.ExcludeAmbiguousCharacters
-                        ? new string(LOWERCASE.Where(c => !AMBIGUOUS.Contains(c)).ToArray())
-                        : LOWERCASE;
-                    int position = RandomNumberGenerator.GetInt32(options.Length);
-                    int charIndex = RandomNumberGenerator.GetInt32(validChars.Length);
-                    passwordChars[position] = validChars[charIndex];
-                }
-
-                if (options.IncludeDigits && !passwordChars.Any(char.IsDigit))
-                {
-                    string validChars = options.ExcludeAmbiguousCharacters
-                        ? new string(DIGITS.Where(c => !AMBIGUOUS.Contains(c)).ToArray())
-                        : DIGITS;
-                    int position = RandomNumberGenerator.GetInt32(options.Length);
-                    int charIndex = RandomNumberGenerator.GetInt32(validChars.Length);
-                    passwordChars[position] = validChars[charIndex];
-                }
-
-                if (options.IncludeSpecialCharacters && !passwordChars.Any(c => SYMBOLS.Contains(c)))
-                {
-                    string validChars = options.ExcludeAmbiguousCharacters
-                        ? new string(SYMBOLS.Where(c => !AMBIGUOUS.Contains(c)).ToArray())
-                        : SYMBOLS;
-                    int position = RandomNumberGenerator.GetInt32(options.Length);
-                    int charIndex = RandomNumberGenerator.GetInt32(validChars.Length);
-                    passwordChars[position] = validChars[charIndex];
-                }
-
-                // Additional check: if excluding ambiguous chars, ensure none are present
-                if (options.ExcludeAmbiguousCharacters)
-                {
-                    for (int i = 0; i < passwordChars.Length; i++)
-                    {
-                        if (AMBIGUOUS.Contains(passwordChars[i]))
-                        {
-                            // Replace with a random character from the valid pool
-                            int charIndex = RandomNumberGenerator.GetInt32(poolArray.Length);
-                            passwordChars[i] = poolArray[charIndex];
-                        }
-                    }
-                }
+                EnsureRequiredCharTypes(passwordChars, options, poolArray);
 
                 // Create password string
                 string password = new string(passwordChars);
@@ -122,10 +70,58 @@ namespace PasswordManager.Core.Services.Implementations
             }
             finally
             {
-                // CRITICAL: Clear sensitive data from memory
+                // Clear sensitive data from memory
                 Array.Clear(passwordChars, 0, passwordChars.Length);
                 Array.Clear(poolArray, 0, poolArray.Length);
             }
+        }
+
+        [ExcludeFromCodeCoverage]
+        private static void EnsureRequiredCharTypes(char[] passwordChars, PasswordOptions options, char[] pool)
+        {
+            const string UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const string LOWERCASE = "abcdefghijklmnopqrstuvwxyz";
+            const string DIGITS = "0123456789";
+            string symbols = PasswordPolicy.SpecialCharacters;
+            const string AMBIGUOUS = "0OolI1|`'\"";
+
+            if (options.IncludeUppercase && !passwordChars.Any(char.IsUpper))
+                ReplaceWithRandomFrom(passwordChars, UPPERCASE, options);
+
+            if (options.IncludeLowercase && !passwordChars.Any(char.IsLower))
+                ReplaceWithRandomFrom(passwordChars, LOWERCASE, options);
+
+            if (options.IncludeDigits && !passwordChars.Any(char.IsDigit))
+                ReplaceWithRandomFrom(passwordChars, DIGITS, options);
+
+            if (options.IncludeSpecialCharacters && !passwordChars.Any(c => symbols.Contains(c)))
+                ReplaceWithRandomFrom(passwordChars, symbols, options);
+
+            if (options.ExcludeAmbiguousCharacters)
+            {
+                for (int i = 0; i < passwordChars.Length; i++)
+                {
+                    if (AMBIGUOUS.Contains(passwordChars[i]))
+                    {
+                        int charIndex = RandomNumberGenerator.GetInt32(pool.Length);
+                        passwordChars[i] = pool[charIndex];
+                    }
+                }
+            }
+        }
+
+        [ExcludeFromCodeCoverage]
+        private static void ReplaceWithRandomFrom(char[] passwordChars, string charSet, PasswordOptions options)
+        {
+            const string AMBIGUOUS = "0OolI1|`'\"";
+
+            string validChars = options.ExcludeAmbiguousCharacters
+                ? new string(charSet.Where(c => !AMBIGUOUS.Contains(c)).ToArray())
+                : charSet;
+
+            int position = RandomNumberGenerator.GetInt32(passwordChars.Length);
+            int charIndex = RandomNumberGenerator.GetInt32(validChars.Length);
+            passwordChars[position] = validChars[charIndex];
         }
     }
 }

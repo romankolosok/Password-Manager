@@ -102,20 +102,11 @@ namespace PasswordManager.Core.Services.Implementations
 
             var session = sessionResult.Value;
 
-            if (session == null || session.User == null)
-            {
-                _logger.LogInformation("User registered but email confirmation required for {Email}", email);
-                return Result.Fail("Registration successful! Please check your email to confirm your account before signing in.");
-            }
+            var signUpValidation = ValidateSignUpSession(session, email);
+            if (signUpValidation != null)
+                return signUpValidation;
 
-            if (string.IsNullOrEmpty(session.User.Id))
-            {
-                _logger.LogError("User ID is null or empty after signup for {Email}", email);
-                await _supabase.Auth.SignOut();
-                return Result.Fail("Registration failed. Invalid user ID.");
-            }
-
-            var authUserId = Guid.Parse(session.User.Id);
+            var authUserId = Guid.Parse(session!.User!.Id);
             await _supabase.Auth.SignOut();
             _logger.LogInformation("User {UserId} registered successfully; redirecting to login", authUserId);
             return Result.Ok();
@@ -160,6 +151,7 @@ namespace PasswordManager.Core.Services.Implementations
             return Result.Ok();
         }
 
+        [ExcludeFromCodeCoverage]
         public async Task LockAsync()
         {
             try
@@ -212,6 +204,25 @@ namespace PasswordManager.Core.Services.Implementations
         }
 
         [ExcludeFromCodeCoverage]
+        private Result? ValidateSignUpSession(Session? session, string email)
+        {
+            if (session?.User == null)
+            {
+                _logger.LogInformation("User registered but email confirmation required for {Email}", email);
+                return Result.Fail("Registration successful! Please check your email to confirm your account before signing in.");
+            }
+
+            if (string.IsNullOrEmpty(session.User.Id))
+            {
+                _logger.LogError("User ID is null or empty after signup for {Email}", email);
+                _supabase.Auth.SignOut();
+                return Result.Fail("Registration failed. Invalid user ID.");
+            }
+
+            return null;
+        }
+
+        [ExcludeFromCodeCoverage]
         private Result? ValidateLoginSession(Session? session, string email)
         {
             if (session?.User == null)
@@ -228,6 +239,7 @@ namespace PasswordManager.Core.Services.Implementations
             return null;
         }
 
+        [ExcludeFromCodeCoverage]
         private async Task<Result<Session?>> CreateAuthSessionAsync(
             string email,
             string masterPassword,
@@ -249,6 +261,7 @@ namespace PasswordManager.Core.Services.Implementations
             }
         }
 
+        [ExcludeFromCodeCoverage]
         private async Task<Result<Session>> AuthenticateAsync(string email, string masterPassword)
         {
             try

@@ -43,9 +43,11 @@ pipeline {
 
                     # Export Supabase connection settings from CLI status (portable across CLI versions).
                     eval "$(supabase status --output env)"
-                    export Supabase__Url="$SUPABASE_URL"
-                    export Supabase__AnonKey="$SUPABASE_ANON_KEY"
-                    export Supabase__ServiceRoleKey="$SUPABASE_SERVICE_ROLE_KEY"
+                    # CLI outputs API_URL / ANON_KEY / SERVICE_ROLE_KEY (and also PUBLISHABLE_KEY / SECRET_KEY).
+                    # Use the JWT keys for auth/admin operations.
+                    export Supabase__Url="$API_URL"
+                    export Supabase__AnonKey="$ANON_KEY"
+                    export Supabase__ServiceRoleKey="$SERVICE_ROLE_KEY"
 
                     # Run tests with coverage; configuration picks up Supabase* settings from env.
                     dotnet test ${TESTS_PROJECT_PATH} --configuration Release --no-build --logger "junit;LogFilePath=test-results.xml" /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=coverage.cobertura.xml

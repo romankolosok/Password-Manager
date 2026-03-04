@@ -155,7 +155,11 @@ namespace PasswordManager.Tests.Fixtures
         }
 
         /// <summary>
-        /// Reads a Supabase setting: env var (Supabase__Key) first, then config (Supabase:Key).
+        /// Reads a Supabase setting.
+        /// Order:
+        /// - Env var "Supabase__{Key}"
+        /// - Env vars emitted by `supabase status --output env` (API_URL, ANON_KEY, SERVICE_ROLE_KEY, etc.)
+        /// - Config file key "Supabase:{Key}"
         /// </summary>
         private static string? GetSupabaseSetting(IConfiguration config, string key)
         {
@@ -163,6 +167,31 @@ namespace PasswordManager.Tests.Fixtures
             var envValue = Environment.GetEnvironmentVariable(envKey);
             if (!string.IsNullOrWhiteSpace(envValue))
                 return envValue;
+
+            // 2) Supabase CLI env output conventions
+            switch (key)
+            {
+                case "Url":
+                    // `supabase status --output env`
+                    envValue = Environment.GetEnvironmentVariable("API_URL");
+                    if (!string.IsNullOrWhiteSpace(envValue)) return envValue;
+                    break;
+
+                case "AnonKey":
+                    envValue = Environment.GetEnvironmentVariable("ANON_KEY");
+                    if (!string.IsNullOrWhiteSpace(envValue)) return envValue;
+                    envValue = Environment.GetEnvironmentVariable("PUBLISHABLE_KEY");
+                    if (!string.IsNullOrWhiteSpace(envValue)) return envValue;
+                    break;
+
+                case "ServiceRoleKey":
+                    envValue = Environment.GetEnvironmentVariable("SERVICE_ROLE_KEY");
+                    if (!string.IsNullOrWhiteSpace(envValue)) return envValue;
+                    envValue = Environment.GetEnvironmentVariable("SECRET_KEY");
+                    if (!string.IsNullOrWhiteSpace(envValue)) return envValue;
+                    break;
+            }
+
             return config[$"Supabase:{key}"];
         }
     }

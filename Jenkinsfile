@@ -3,6 +3,9 @@ pipeline {
 
     environment {
         DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+        // Always treat Jenkins runs as Development so we use local Supabase/config,
+        // never the production cloud settings.
+        DOTNET_ENVIRONMENT = 'Development'
         PROJECT_PATH = 'PasswordManager.sln'
         CORE_PROJECT_PATH = 'PasswordManager.Core/PasswordManager.Core.csproj'
         TESTS_PROJECT_PATH = 'PasswordManager.Tests/PasswordManager.Tests.csproj'
@@ -31,10 +34,30 @@ pipeline {
         // Test Core library only. coverlet.msbuild: collect Cobertura coverage for reporting (no threshold enforcement yet).
         stage('Test & Coverage') {
             steps {
-                sh "dotnet test ${env.TESTS_PROJECT_PATH} --configuration Release --no-build --logger 'junit;LogFilePath=test-results.xml' /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=coverage.cobertura.xml"
+                sh '''
+                    # Start local Supabase stack (Docker) for integration tests.
+                    supabase start
+
+                    # Ensure we always start from a clean schema for this CI run.
+                    supabase db reset
+
+                    # Export Supabase connection settings from CLI status (portable across CLI versions).
+                    eval "$(supabase status --output env)"
+                    # CLI outputs API_URL / ANON_KEY / SERVICE_ROLE_KEY (and also PUBLISHABLE_KEY / SECRET_KEY).
+                    # Use the JWT keys for auth/admin operations.
+                    export Supabase__Url="$API_URL"
+                    export Supabase__AnonKey="$ANON_KEY"
+                    export Supabase__ServiceRoleKey="$SERVICE_ROLE_KEY"
+
+                    # Run tests with coverage; configuration picks up Supabase* settings from env.
+                    dotnet test ${TESTS_PROJECT_PATH} --configuration Release --no-build --logger "junit;LogFilePath=test-results.xml" /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=coverage.cobertura.xml
+                '''
             }
             post {
                 always {
+                    // Try to stop Supabase containers; ignore failures if CLI is missing or already stopped.
+                    sh 'supabase stop || true'
+
                     junit allowEmptyResults: true, testResults: '**/test-results.xml'
                     recordCoverage(
                         tools: [[parser: 'COBERTURA', pattern: '**/coverage.cobertura.xml']],

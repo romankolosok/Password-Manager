@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging;
 using Moq;
 using PasswordManager.Core.Entities;
 using PasswordManager.Core.Models;
@@ -172,6 +172,25 @@ namespace PasswordManager.Tests.Services
 
             Assert.False(result.Success);
             Assert.Equal("Not implemented.", result.Message);
+        }
+
+        [Fact]
+        public async Task RegisterAsyncReturnsFailureWhenEncryptionFails()
+        {
+            _fixture.Reset();
+            var service = _fixture.CreateService();
+
+            const string email = "user@example.com";
+            const string password = "ValidPassword1!";
+
+            _fixture.CryptoService
+                .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(Result<EncryptedBlob>.Fail("encryption failed"));
+
+            var result = await service.RegisterAsync(email, password);
+
+            Assert.False(result.Success);
+            Assert.Equal("Failed to create account. Please try again.", result.Message);
         }
     }
 }

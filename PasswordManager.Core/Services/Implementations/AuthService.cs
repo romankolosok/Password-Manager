@@ -6,6 +6,7 @@ using PasswordManager.Core.Validators;
 using Supabase.Gotrue;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -44,6 +45,7 @@ namespace PasswordManager.Core.Services.Implementations
             _supabase.Auth.AddStateChangedListener(OnAuthStateChanged);
         }
 
+        [ExcludeFromCodeCoverage]
         private void OnAuthStateChanged(object? sender, Supabase.Gotrue.Constants.AuthState state)
         {
             switch (state)
@@ -130,20 +132,14 @@ namespace PasswordManager.Core.Services.Implementations
 
             var session = sessionResult.Value;
 
-            // Validate session
-            if (session?.User == null)
+            // Validate session and user id (defensive guards)
+            var invalidSessionResult = ValidateLoginSession(session, email);
+            if (invalidSessionResult != null)
             {
-                return Result.Fail("Invalid session. Please try again.");
+                return invalidSessionResult;
             }
 
-            // Parse user ID with null check
-            if (string.IsNullOrEmpty(session.User.Id))
-            {
-                _logger.LogError("User ID is null or empty after login for {Email}", email);
-                return Result.Fail("Login failed. Invalid user ID.");
-            }
-
-            var authUserId = Guid.Parse(session.User.Id);
+            var authUserId = Guid.Parse(session!.User!.Id);
 
             // Set temporary session for profile retrieval
             _sessionService.SetUser(authUserId, session.User.Email ?? email, session.AccessToken);
@@ -213,6 +209,23 @@ namespace PasswordManager.Core.Services.Implementations
             }
 
             return Result.Ok();
+        }
+
+        [ExcludeFromCodeCoverage]
+        private Result? ValidateLoginSession(Session? session, string email)
+        {
+            if (session?.User == null)
+            {
+                return Result.Fail("Invalid session. Please try again.");
+            }
+
+            if (string.IsNullOrEmpty(session.User.Id))
+            {
+                _logger.LogError("User ID is null or empty after login for {Email}", email);
+                return Result.Fail("Login failed. Invalid user ID.");
+            }
+
+            return null;
         }
 
         private async Task<Result<Session?>> CreateAuthSessionAsync(

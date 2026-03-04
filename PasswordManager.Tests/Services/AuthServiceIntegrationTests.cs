@@ -110,7 +110,6 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task LoginAsyncSetsSessionStateAndDerivedKey()
         {
-            // Arrange — register a user first
             var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
@@ -120,9 +119,8 @@ namespace PasswordManager.Tests.Services
             var loginResult = await _fixture.AuthService.LoginAsync(email, password);
             Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
 
-            var userId = _fixture.SessionService.CurrentUserId;
-            Assert.NotNull(userId);
-            Assert.Equal(email, _fixture.SessionService.CurrentUserEmail);
+            Assert.NotNull(_fixture.AuthService.CurrentUserId);
+            Assert.Equal(email, _fixture.AuthService.CurrentUserEmail);
 
             Assert.True(_fixture.SessionService.IsActive(), "Session should be active after login");
 

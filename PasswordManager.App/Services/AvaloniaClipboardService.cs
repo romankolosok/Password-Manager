@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using PasswordManager.Core.Services.Interfaces;
+using System.Threading.Tasks;
 
 namespace PasswordManager.App.Services
 {
@@ -18,22 +19,41 @@ namespace PasswordManager.App.Services
             _clearTimer.Tick += OnClearTimerTick;
         }
 
-        public async void CopyWithAutoClear(string text, int secondsToClear = 15)
+        public void CopyWithAutoClear(string text, int secondsToClear = 15)
         {
-            var clipboard = GetClipboard();
-            if (clipboard == null) return;
-
-            await clipboard.SetTextAsync(text);
-            _lastCopiedText = text;
-
-            _clearTimer.Stop();
-            _clearTimer.Interval = TimeSpan.FromSeconds(secondsToClear);
-            _clearTimer.Start();
+            // Fire-and-forget with internal async workflow that safely handles exceptions.
+            _ = CopyWithAutoClearAsync(text, secondsToClear);
         }
 
-        public async void ClearClipboard()
+        public void ClearClipboard()
         {
             _clearTimer.Stop();
+            // Fire-and-forget; internal method handles its own exceptions.
+            _ = ClearClipboardAsync();
+        }
+
+        private async Task CopyWithAutoClearAsync(string text, int secondsToClear)
+        {
+            try
+            {
+                var clipboard = GetClipboard();
+                if (clipboard == null) return;
+
+                await clipboard.SetTextAsync(text);
+                _lastCopiedText = text;
+
+                _clearTimer.Stop();
+                _clearTimer.Interval = TimeSpan.FromSeconds(secondsToClear);
+                _clearTimer.Start();
+            }
+            catch
+            {
+                // Ignore clipboard errors (clipboard may be locked or unavailable).
+            }
+        }
+
+        private async Task ClearClipboardAsync()
+        {
             try
             {
                 var clipboard = GetClipboard();
@@ -42,7 +62,7 @@ namespace PasswordManager.App.Services
             }
             catch
             {
-                // Clipboard might be locked by another app
+                // Clipboard might be locked by another app.
             }
         }
 

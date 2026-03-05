@@ -3,7 +3,6 @@
              xmlns:converters="using:PasswordManager.App.Converters"
              x:Class="PasswordManager.App.Views.EntryDetailView">
     <UserControl.Resources>
-        <converters:PasswordStrengthToBrushConverter x:Key="PasswordStrengthToBrushConverter"/>
         <converters:PasswordStrengthSegmentToBrushConverter x:Key="PasswordStrengthSegmentToBrushConverter"/>
     </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#F8FAFC">
@@ -117,7 +116,7 @@
                 </Grid>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding PasswordStrengthLabel}" FontSize="12" VerticalAlignment="Center"
-                               Foreground="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthToBrushConverter}}"
+                               Foreground="{Binding PasswordStrength, Converter={x:Static converters:PasswordStrengthToBrushConverter.Instance}}"
                                Margin="0,0,6,0"/>
                     <Border Width="18" Height="18" CornerRadius="9" Background="#2563EB" Cursor="Help"
                             ToolTip.Tip="{Binding PasswordStrengthFeedback}">

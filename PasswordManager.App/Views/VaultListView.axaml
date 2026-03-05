@@ -3,9 +3,7 @@
              xmlns:converters="using:PasswordManager.App.Converters"
              x:Class="PasswordManager.App.Views.VaultListView"
              x:Name="Root">
-    <UserControl.Resources>
-        <converters:MaskPasswordConverter x:Key="MaskPasswordConverter"/>
-    </UserControl.Resources>
+    
     <Grid Background="#F8FAFC" RowDefinitions="Auto,Auto,*">
 
         <!-- Header: logo + VaultKey + email (left), Lock button (right) -->
@@ -116,7 +114,7 @@
                                 <Border Grid.Row="4" Grid.Column="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
                                         CornerRadius="6" Padding="10,8">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Grid.Column="0" Text="{Binding Password, Converter={StaticResource MaskPasswordConverter}}"
+                                        <TextBlock Grid.Column="0" Text="{Binding Password, Converter={x:Static converters:MaskPasswordConverter.Instance}}"
                                                    FontSize="14" Foreground="#374151" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                         <Button Grid.Column="1" Classes="icon-btn"
                                                 Command="{Binding #Root.DataContext.CopyPasswordCommand}"

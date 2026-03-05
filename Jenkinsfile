@@ -30,14 +30,25 @@ pipeline {
         stage('Test & Coverage') {
             steps {
                 sh '''
+                    # Always run tests against an isolated local Supabase (Docker),
+                    # even on main, so we never pollute the production database.
+                    # App binaries themselves will use remote Supabase at runtime via env vars.
+
                     # Ensure any previous local stack is stopped so we start clean.
                     supabase stop || true
 
-                    supabase start
+                    # Work around occasional leftover DB container name conflicts.
+                    docker rm -f supabase_db_PasswordManager 2>/dev/null || true
+
+                    # Start local Supabase stack; the CLI may still return a non-zero
+                    # exit code even if containers are up (e.g. when reading logs).
+                    # Do not fail the build on that condition.
+                    supabase start || echo "supabase start reported an error; continuing (containers may still be running)"
                     # Reset schema; if this fails (e.g. transient container issue),
                     # log it but still attempt to run tests against whatever state exists.
                     supabase db reset || echo "supabase db reset failed; continuing with existing database state"
 
+                    # Export local Supabase connection settings from CLI status.
                     eval "$(supabase status --output env)"
                     export Supabase__Url="$API_URL"
                     export Supabase__AnonKey="$ANON_KEY"

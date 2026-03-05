@@ -38,9 +38,12 @@ pipeline {
                     supabase stop || true
 
                     # Work around occasional leftover DB container name conflicts.
-                    docker rm -f supabase_db_PasswordManager || true
+                    docker rm -f supabase_db_PasswordManager 2>/dev/null || true
 
-                    supabase start
+                    # Start local Supabase stack; the CLI may still return a non-zero
+                    # exit code even if containers are up (e.g. when reading logs).
+                    # Do not fail the build on that condition.
+                    supabase start || echo "supabase start reported an error; continuing (containers may still be running)"
                     # Reset schema; if this fails (e.g. transient container issue),
                     # log it but still attempt to run tests against whatever state exists.
                     supabase db reset || echo "supabase db reset failed; continuing with existing database state"

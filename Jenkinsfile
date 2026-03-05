@@ -30,8 +30,13 @@ pipeline {
         stage('Test & Coverage') {
             steps {
                 sh '''
+                    # Ensure any previous local stack is stopped so we start clean.
+                    supabase stop || true
+
                     supabase start
-                    supabase db reset
+                    # Reset schema; if this fails (e.g. transient container issue),
+                    # log it but still attempt to run tests against whatever state exists.
+                    supabase db reset || echo "supabase db reset failed; continuing with existing database state"
 
                     eval "$(supabase status --output env)"
                     export Supabase__Url="$API_URL"

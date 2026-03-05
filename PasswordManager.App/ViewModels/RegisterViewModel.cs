@@ -42,9 +42,12 @@ namespace PasswordManager.App.ViewModels
         [NotifyCanExecuteChangedFor(nameof(RegisterCommand))]
         private bool _isLoading;
 
-        /// <summary>
-        /// Validation error (from validators) or server error. Shown when all fields have input or after submit.
-        /// </summary>
+        [ObservableProperty]
+        private bool _isPasswordVisible;
+
+        [ObservableProperty]
+        private bool _isConfirmPasswordVisible;
+
         public string DisplayError => AllFieldsFilled ? (GetValidationError() ?? RegisterError) : RegisterError;
 
         public bool DisplayErrorVisible => !string.IsNullOrEmpty(DisplayError);
@@ -84,9 +87,6 @@ namespace PasswordManager.App.ViewModels
             && MasterPassword == ConfirmPassword
             && GetValidationError() == null;
 
-        /// <summary>
-        /// Uses Core validators (same as AuthService). Returns null if valid, otherwise first error message.
-        /// </summary>
         private string? GetValidationError()
         {
             var emailResult = _emailValidator.Validate(new EmailInput { Email = Email.Trim() });
@@ -103,9 +103,6 @@ namespace PasswordManager.App.ViewModels
             return null;
         }
 
-        /// <summary>
-        /// Raised when registration succeeds. Coordinator closes register and shows login.
-        /// </summary>
         public event EventHandler? RegisterSuccessful;
 
         public RegisterViewModel(IAuthService authService)

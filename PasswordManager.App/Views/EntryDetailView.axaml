@@ -1,0 +1,200 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:PasswordManager.App.Converters"
+             x:Class="PasswordManager.App.Views.EntryDetailView">
+    <UserControl.Resources>
+        <converters:PasswordStrengthToBrushConverter x:Key="PasswordStrengthToBrushConverter"/>
+        <converters:PasswordStrengthSegmentToBrushConverter x:Key="PasswordStrengthSegmentToBrushConverter"/>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#F8FAFC">
+        <Grid Margin="24,20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+
+            <!-- Back + Title -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,24" VerticalAlignment="Center">
+                <Button Command="{Binding CancelCommand}" Classes="icon-btn"
+                        Padding="0,6" Margin="0,0,12,0" ToolTip.Tip="Back">
+                    <TextBlock Text="&#x2190;" FontSize="20" Foreground="#374151" VerticalAlignment="Center"/>
+                </Button>
+                <Panel>
+                    <TextBlock VerticalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="#111827"
+                               Text="Add New Entry" IsVisible="{Binding !IsEditing}"/>
+                    <TextBlock VerticalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="#111827"
+                               Text="Edit Entry" IsVisible="{Binding IsEditing}"/>
+                </Panel>
+            </StackPanel>
+
+            <!-- Site Name * -->
+            <TextBlock Grid.Row="1" Text="Site Name *" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Grid.Row="2" Classes="input-border" Margin="0,0,0,16">
+                <TextBox Classes="inner-input"
+                         Watermark="e.g., Gmail, GitHub, Banking"
+                         Text="{Binding WebsiteName}"/>
+            </Border>
+
+            <!-- URL -->
+            <TextBlock Grid.Row="3" Text="URL" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Grid.Row="4" Classes="input-border" Margin="0,0,0,16">
+                <TextBox Classes="inner-input"
+                         Watermark="https://example.com"
+                         Text="{Binding Url}"/>
+            </Border>
+
+            <!-- Username -->
+            <TextBlock Grid.Row="5" Text="Username" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Grid.Row="6" Classes="input-border" Margin="0,0,0,16">
+                <TextBox Classes="inner-input"
+                         Watermark="Enter username or email"
+                         Text="{Binding Username}"/>
+            </Border>
+
+            <!-- Password -->
+            <TextBlock Grid.Row="7" Text="Password" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Grid Grid.Row="8" Margin="0,0,0,4" ColumnDefinitions="*,Auto">
+                <Border Grid.Column="0" Classes="input-border" Margin="0,0,12,0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Classes="inner-input" FontFamily="Consolas"
+                                 PasswordChar="&#x2022;"
+                                 RevealPassword="{Binding IsPasswordVisible}"
+                                 Text="{Binding Password}"
+                                 Watermark="Enter or generate password"/>
+                        <Button Grid.Column="1" Classes="icon-btn"
+                                Command="{Binding TogglePasswordVisibilityCommand}"
+                                Width="32" Padding="4" ToolTip.Tip="Show/Hide password"
+                                VerticalAlignment="Center">
+                            <Panel>
+                                <Viewbox Width="20" Height="20" IsVisible="{Binding !IsPasswordVisible}">
+                                    <Canvas Width="24" Height="24">
+                                        <Path Stroke="#374151" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                              Data="M1,12 C1,12 5,4 12,4 C19,4 23,12 23,12"/>
+                                        <Path Stroke="#374151" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                              Data="M1,12 C1,12 5,20 12,20 C19,20 23,12 23,12"/>
+                                        <Ellipse Canvas.Left="9" Canvas.Top="9" Width="6" Height="6" Stroke="#374151" StrokeThickness="2" Fill="Transparent"/>
+                                    </Canvas>
+                                </Viewbox>
+                                <Viewbox Width="20" Height="20" IsVisible="{Binding IsPasswordVisible}">
+                                    <Canvas Width="24" Height="24">
+                                        <Path Stroke="#374151" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                              Data="M2,2 L22,22"/>
+                                        <Path Stroke="#374151" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                              Data="M6.71,6.72 C3.66,8.8 2,12 2,12 C2,12 5.64,19 12,19 C14.05,19 15.82,18.27 17.27,17.29 M11,5.06 C11.33,5.02 11.66,5 12,5 C18.36,5 22,12 22,12 C22,12 21.31,13.33 20,14.83"/>
+                                        <Path Stroke="#374151" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                              Data="M14,14.24 C13.47,14.71 12.77,15 12,15 C10.34,15 9,13.66 9,12 C9,11.18 9.33,10.43 9.87,9.89"/>
+                                    </Canvas>
+                                </Viewbox>
+                            </Panel>
+                        </Button>
+                    </Grid>
+                </Border>
+                <Button Grid.Column="1" Command="{Binding GeneratePasswordCommand}" ToolTip.Tip="Generate password"
+                        Classes="secondary" Padding="12,0" MinWidth="40" Height="40">
+                    <Viewbox Width="20" Height="20" Stretch="Uniform">
+                        <Canvas Width="16" Height="16">
+                            <Path Fill="#6B7280">
+                                <Path.RenderTransform>
+                                    <TranslateTransform X="-23" Y="239"/>
+                                </Path.RenderTransform>
+                                <Path.Data>
+                                    <PathGeometry Figures="M29.5,-228 h5 a0.5,0.5 0 0 0 0.5,-0.5 v-4 a0.5,0.5 0 0 0 -0.5,-0.5 H34 v-1 a2,2 0 0 0 -2,-2 2,2 0 0 0 -2,2 v1 h-0.5 a0.5,0.5 0 0 0 -0.5,0.5 v4 a0.5,0.5 0 0 0 0.5,0.5 Z m1.5,-6 a1,1 0 0 1 1,-1 1,1 0 0 1 1,1 v1 H31 Z m-1,2 h4 v3 H30 Z m9,0 a7.008,7.008 0 0 1 -7,7 7.008,7.008 0 0 1 -7,-7 v-1.293 l-1.146,1.147 a0.5,0.5 0 0 1 -0.354,0.146 0.5,0.5 0 0 1 -0.354,-0.146 0.5,0.5 0 0 1 0,-0.708 l2,-2 a0.518,0.518 0 0 1 0.163,-0.109 0.505,0.505 0 0 1 0.382,0 0.518,0.518 0 0 1 0.163,0.109 l2,2 a0.5,0.5 0 0 1 0,0.708 0.5,0.5 0 0 1 -0.354,0.146 0.5,0.5 0 0 1 -0.354,-0.146 L26,-233.293 V-232 a6.006,6.006 0 0 0 6,6 6.006,6.006 0 0 0 6,-6 6.006,6.006 0 0 0 -6,-6 a0.5,0.5 0 0 1 -0.5,-0.5 0.5,0.5 0 0 1 0.5,-0.5 A7.008,7.008 0 0 1 39,-232 Z"/>
+                                </Path.Data>
+                            </Path>
+                        </Canvas>
+                    </Viewbox>
+                </Button>
+            </Grid>
+
+            <!-- Password strength bar -->
+            <Grid Grid.Row="9" Margin="0,0,0,16" ColumnDefinitions="*,Auto">
+                <Grid Grid.Column="0" Height="8" MinWidth="120" VerticalAlignment="Center" Margin="0,0,12,0"
+                      ColumnDefinitions="*,*,*,*">
+                    <Border Grid.Column="0" Margin="0,0,2,0" CornerRadius="4"
+                            Background="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthSegmentToBrushConverter}, ConverterParameter=1}"/>
+                    <Border Grid.Column="1" Margin="2,0,2,0" CornerRadius="4"
+                            Background="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthSegmentToBrushConverter}, ConverterParameter=2}"/>
+                    <Border Grid.Column="2" Margin="2,0,2,0" CornerRadius="4"
+                            Background="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthSegmentToBrushConverter}, ConverterParameter=3}"/>
+                    <Border Grid.Column="3" Margin="2,0,0,0" CornerRadius="4"
+                            Background="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthSegmentToBrushConverter}, ConverterParameter=4}"/>
+                </Grid>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding PasswordStrengthLabel}" FontSize="12" VerticalAlignment="Center"
+                               Foreground="{Binding PasswordStrength, Converter={StaticResource PasswordStrengthToBrushConverter}}"
+                               Margin="0,0,6,0"/>
+                    <Border Width="18" Height="18" CornerRadius="9" Background="#2563EB" Cursor="Help"
+                            ToolTip.Tip="{Binding PasswordStrengthFeedback}">
+                        <TextBlock Text="i" FontSize="12" FontStyle="Italic" FontWeight="SemiBold" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <!-- Generator Options -->
+            <Border Grid.Row="10" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,16" Background="White">
+                <StackPanel>
+                    <TextBlock Text="Generator Options" FontSize="14" FontWeight="SemiBold" Foreground="#111827" Margin="0,0,0,12"/>
+                    <Grid ColumnDefinitions="Auto,Auto,*">
+                        <TextBlock Grid.Column="0" Text="Length:" FontSize="14" Foreground="#374151" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Border Grid.Column="1" BorderBrush="#E5E7EB" BorderThickness="1"
+                                CornerRadius="6" Background="White" Height="36" ClipToBounds="True">
+                            <Grid ColumnDefinitions="36,Auto,44,Auto,36">
+                                <Button Grid.Column="0" Command="{Binding DecrementLengthCommand}"
+                                        Classes="icon-btn" Width="36" Height="36"
+                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                                    <TextBlock Text="&#x2212;" FontSize="18" Foreground="#6B7280"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Button>
+                                <Border Grid.Column="1" Width="1" Background="#E5E7EB" VerticalAlignment="Stretch"/>
+                                <TextBlock Grid.Column="2" Text="{Binding GeneratorLength}"
+                                           FontSize="14" Foreground="#374151" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Border Grid.Column="3" Width="1" Background="#E5E7EB" VerticalAlignment="Stretch"/>
+                                <Button Grid.Column="4" Command="{Binding IncrementLengthCommand}"
+                                        Classes="icon-btn" Width="36" Height="36"
+                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                                    <TextBlock Text="+" FontSize="18" Foreground="#6B7280"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Button>
+                            </Grid>
+                        </Border>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center" Spacing="16">
+                            <CheckBox Content="Upper (A-Z)" IsChecked="{Binding GeneratorIncludeUpper}" Foreground="#374151" FontSize="13"/>
+                            <CheckBox Content="Digits (0-9)" IsChecked="{Binding GeneratorIncludeDigits}" Foreground="#374151" FontSize="13"/>
+                            <CheckBox Content="Lower (a-z)" IsChecked="{Binding GeneratorIncludeLower}" Foreground="#374151" FontSize="13"/>
+                            <CheckBox Content="Symbols (!@#...)" IsChecked="{Binding GeneratorIncludeSymbols}" Foreground="#374151" FontSize="13"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Category -->
+            <TextBlock Grid.Row="11" Text="Category" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Grid.Row="12" Classes="input-border" Margin="0,0,0,16">
+                <TextBox Classes="inner-input"
+                         Watermark="e.g., Work, Personal, Finance"
+                         Text="{Binding Category}"/>
+            </Border>
+
+            <!-- Notes -->
+            <TextBlock Grid.Row="13" Text="Notes" FontSize="14" Foreground="#374151" Margin="0,0,0,6"/>
+            <Border Grid.Row="14" Classes="input-border" Margin="0,0,0,16">
+                <TextBox Classes="inner-input" Height="60"
+                         TextWrapping="Wrap" AcceptsReturn="True"
+                         Watermark="Add any additional notes..."
+                         Text="{Binding Notes}"/>
+            </Border>
+
+            <!-- Favorite -->
+            <CheckBox Grid.Row="15" Content="Favorite" IsChecked="{Binding IsFavorite}" Margin="0,0,0,24"
+                      Foreground="#374151" FontSize="14"/>
+
+            <!-- Buttons -->
+            <StackPanel Grid.Row="16" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8" Spacing="12">
+                <Button Content="Cancel" Command="{Binding CancelCommand}" Classes="secondary"/>
+                <Button Content="Save" Command="{Binding SaveCommand}" Classes="primary"/>
+            </StackPanel>
+
+            <!-- Error message -->
+            <TextBlock Grid.Row="17" Text="{Binding ErrorMessage}" Foreground="#DC2626" FontSize="13" Margin="0,8,0,0"
+                       IsVisible="{Binding ErrorMessageVisible}"/>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

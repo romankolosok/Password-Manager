@@ -1,0 +1,143 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PasswordManager.App.App"
+             RequestedThemeVariant="Light">
+
+    <Application.Styles>
+        <FluentTheme />
+
+        <!-- Input border with focus-within highlight -->
+        <Style Selector="Border.input-border">
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Padding" Value="10"/>
+        </Style>
+        <Style Selector="Border.input-border:focus-within">
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+
+        <!-- Inner TextBox: no border, transparent background -->
+        <Style Selector="TextBox.inner-input">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0,6,4,0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="MinHeight" Value="28"/>
+        </Style>
+        <Style Selector="TextBox.inner-input:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.inner-input:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <!-- Primary button (blue) -->
+        <Style Selector="Button.primary">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.primary /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1D4ED8"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1E40AF"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#93C5FD"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- Secondary button (white with border) -->
+        <Style Selector="Button.secondary">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.secondary /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#1F2937"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#F9FAFB"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+        </Style>
+
+        <!-- Icon / copy button (transparent, no hover background) -->
+        <Style Selector="Button.icon-btn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+        <Style Selector="Button.icon-btn /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.icon-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <!-- Delete button (white bg, red border, red hover) -->
+        <Style Selector="Button.delete-btn">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10"/>
+        </Style>
+        <Style Selector="Button.delete-btn /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#FECACA"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.delete-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#FEF2F2"/>
+            <Setter Property="BorderBrush" Value="#FECACA"/>
+        </Style>
+        <Style Selector="Button.delete-btn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#FEE2E2"/>
+            <Setter Property="BorderBrush" Value="#FCA5A5"/>
+        </Style>
+
+        <!-- Peek toggle button (transparent, no hover) -->
+        <Style Selector="ToggleButton.peek">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+        </Style>
+        <Style Selector="ToggleButton.peek /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ToggleButton.peek:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ToggleButton.peek:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+    </Application.Styles>
+</Application>

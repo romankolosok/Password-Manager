@@ -1,0 +1,171 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:PasswordManager.App.Converters"
+             x:Class="PasswordManager.App.Views.VaultListView"
+             x:Name="Root">
+    <UserControl.Resources>
+        <converters:MaskPasswordConverter x:Key="MaskPasswordConverter"/>
+    </UserControl.Resources>
+    <Grid Background="#F8FAFC" RowDefinitions="Auto,Auto,*">
+
+        <!-- Header: logo + VaultKey + email (left), Lock button (right) -->
+        <Grid Grid.Row="0" Margin="24,20,24,16" ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Width="40" Height="40" CornerRadius="8" Margin="0,0,12,0" VerticalAlignment="Center">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Color="#1E3A5F" Offset="0"/>
+                            <GradientStop Color="#0D9488" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Viewbox Width="22" Height="22" Margin="9">
+                        <Path Data="M12,2 C9.24,2 7,4.24 7,7 L7,9 L5,9 C3.9,9 3,9.9 3,11 L3,20 C3,21.1 3.9,22 5,22 L19,22 C20.1,22 21,21.1 21,20 L21,11 C21,9.9 20.1,9 19,9 L17,9 L17,7 C17,4.24 14.76,2 12,2 Z M12,4 C13.66,4 15,5.34 15,7 L15,9 L9,9 L9,7 C9,5.34 10.34,4 12,4 Z"
+                              Fill="White" Stroke="White" StrokeThickness="0.5"/>
+                    </Viewbox>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="VaultKey" FontSize="22" FontWeight="Bold" Foreground="#111827"/>
+                    <TextBlock Text="{Binding CurrentUserEmail}" FontSize="13" Foreground="#6B7280" Margin="0,2,0,0"/>
+                </StackPanel>
+            </StackPanel>
+            <!-- Lock button -->
+            <Button Grid.Column="1" Command="{Binding LockCommand}" Classes="secondary"
+                    Padding="14,10" VerticalAlignment="Center" ToolTip.Tip="Lock vault">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Viewbox Width="18" Height="18" Margin="0,0,6,0">
+                        <Path Data="M12,2 C9.24,2 7,4.24 7,7 L7,9 L5,9 C3.9,9 3,9.9 3,11 L3,20 C3,21.1 3.9,22 5,22 L19,22 C20.1,22 21,21.1 21,20 L21,11 C21,9.9 20.1,9 19,9 L17,9 L17,7 C17,4.24 14.76,2 12,2 Z M12,4 C13.66,4 15,5.34 15,7 L15,9 L9,9 L9,7 C9,5.34 10.34,4 12,4 Z"
+                              Fill="#374151" Stroke="#374151" StrokeThickness="0.5"/>
+                    </Viewbox>
+                    <TextBlock Text="Lock" FontSize="14" FontWeight="SemiBold" Foreground="#374151" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <!-- Search bar + Add Secret -->
+        <Grid Grid.Row="1" Margin="24,0,24,20" ColumnDefinitions="*,Auto">
+            <Border Grid.Column="0" Classes="input-border" Margin="0,0,12,0">
+                <Grid ColumnDefinitions="Auto,*">
+                    <Viewbox Grid.Column="0" Width="20" Height="20" Margin="0,0,10,0" VerticalAlignment="Center">
+                        <Path Data="M15.5,14 L14.71,14 L14.43,13.73 C15.41,12.59 16,11.11 16,9.5 C16,5.91 13.09,3 9.5,3 C5.91,3 3,5.91 3,9.5 C3,13.09 5.91,16 9.5,16 C11.11,16 12.59,15.41 13.73,14.43 L14,14.71 L14,15.5 L19,20.49 L20.49,19 L15.5,14 Z M9.5,14 C7.01,14 5,11.99 5,9.5 C5,7.01 7.01,5 9.5,5 C11.99,5 14,7.01 14,9.5 C14,11.99 11.99,14 9.5,14 Z"
+                              Fill="#9CA3AF"/>
+                    </Viewbox>
+                    <TextBox Grid.Column="1" Classes="inner-input"
+                             Watermark="Search by title, username, or website..."
+                             Text="{Binding SearchQuery}"/>
+                </Grid>
+            </Border>
+            <Button Grid.Column="1" Command="{Binding AddEntryCommand}" Classes="primary"
+                    Padding="16,12" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="+" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="Add Secret" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <!-- Entry list -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Margin="24,0,24,24" Padding="0,0,0,8">
+            <ItemsControl ItemsSource="{Binding Entries}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,0,0,16" Background="White" CornerRadius="8" Padding="0"
+                                BorderThickness="4,0,0,0" BorderBrush="#3B82F6"
+                                BoxShadow="0 2 8 0 #14000000">
+                            <Grid Margin="20,16" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+
+                                <!-- Service icon + name + domain -->
+                                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,0,0,12">
+                                    <Border Width="40" Height="40" CornerRadius="8" Background="#EFF6FF" Margin="0,0,12,0">
+                                        <Viewbox Width="20" Height="20" Margin="10">
+                                            <Path Data="M12,2 C9.24,2 7,4.24 7,7 L7,9 L5,9 C3.9,9 3,9.9 3,11 L3,20 C3,21.1 3.9,22 5,22 L19,22 C20.1,22 21,21.1 21,20 L21,11 C21,9.9 20.1,9 19,9 L17,9 L17,7 C17,4.24 14.76,2 12,2 Z M12,4 C13.66,4 15,5.34 15,7 L15,9 L9,9 L9,7 C9,5.34 10.34,4 12,4 Z"
+                                                  Fill="#2563EB" Stroke="#2563EB" StrokeThickness="0.5"/>
+                                        </Viewbox>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding WebsiteName}" FontSize="16" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock Text="{Binding Url}" FontSize="13" Foreground="#6B7280" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- USERNAME -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="USERNAME" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#9CA3AF" Margin="0,0,0,4"/>
+                                <Border Grid.Row="2" Grid.Column="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
+                                        CornerRadius="6" Padding="10,8" Margin="0,0,0,12">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding Username}" FontSize="14" Foreground="#374151"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Button Grid.Column="1" Classes="icon-btn"
+                                                Command="{Binding #Root.DataContext.CopyUsernameCommand}"
+                                                CommandParameter="{Binding}" ToolTip.Tip="Copy username"
+                                                Padding="4" Margin="4,0,0,0">
+                                            <Viewbox Width="16" Height="16">
+                                                <Grid>
+                                                    <Path Data="M15.24 2H11.35C9.58 2 8.18 2 7.09 2.15C5.97 2.3 5.05 2.62 4.34 3.34C3.62 4.06 3.3 4.98 3.15 6.11C3 7.21 3 8.61 3 10.38V16.22C3 17.73 3.92 19.02 5.23 19.56C5.16 18.65 5.16 17.37 5.16 16.31V11.4C5.16 10.02 5.16 8.92 5.28 8.03C5.41 7.08 5.69 6.18 6.43 5.44C7.16 4.7 8.06 4.41 9.01 4.29C9.89 4.17 10.99 4.17 12.27 4.17H15.24C16.61 4.17 17.71 4.17 18.59 4.29C18.06 2.95 16.76 2 15.24 2Z" Fill="#6B7280"/>
+                                                    <Path Data="M6.6 11.4C6.6 8.67 6.6 7.31 7.44 6.46C8.29 5.61 9.64 5.61 12.36 5.61H15.24C17.96 5.61 19.31 5.61 20.16 6.46C21 7.31 21 8.67 21 11.4V16.22C21 18.94 21 20.31 20.16 21.15C19.31 22 17.96 22 15.24 22H12.36C9.64 22 8.29 22 7.44 21.15C6.6 20.31 6.6 18.94 6.6 16.22V11.4Z" Fill="#6B7280"/>
+                                                </Grid>
+                                            </Viewbox>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+
+                                <!-- PASSWORD -->
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="PASSWORD" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#9CA3AF" Margin="0,0,0,4"/>
+                                <Border Grid.Row="4" Grid.Column="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
+                                        CornerRadius="6" Padding="10,8">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding Password, Converter={StaticResource MaskPasswordConverter}}"
+                                                   FontSize="14" Foreground="#374151" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Button Grid.Column="1" Classes="icon-btn"
+                                                Command="{Binding #Root.DataContext.CopyPasswordCommand}"
+                                                CommandParameter="{Binding}" ToolTip.Tip="Copy password"
+                                                Padding="4" Margin="4,0,0,0">
+                                            <Viewbox Width="16" Height="16">
+                                                <Grid>
+                                                    <Path Data="M15.24 2H11.35C9.58 2 8.18 2 7.09 2.15C5.97 2.3 5.05 2.62 4.34 3.34C3.62 4.06 3.3 4.98 3.15 6.11C3 7.21 3 8.61 3 10.38V16.22C3 17.73 3.92 19.02 5.23 19.56C5.16 18.65 5.16 17.37 5.16 16.31V11.4C5.16 10.02 5.16 8.92 5.28 8.03C5.41 7.08 5.69 6.18 6.43 5.44C7.16 4.7 8.06 4.41 9.01 4.29C9.89 4.17 10.99 4.17 12.27 4.17H15.24C16.61 4.17 17.71 4.17 18.59 4.29C18.06 2.95 16.76 2 15.24 2Z" Fill="#6B7280"/>
+                                                    <Path Data="M6.6 11.4C6.6 8.67 6.6 7.31 7.44 6.46C8.29 5.61 9.64 5.61 12.36 5.61H15.24C17.96 5.61 19.31 5.61 20.16 6.46C21 7.31 21 8.67 21 11.4V16.22C21 18.94 21 20.31 20.16 21.15C19.31 22 17.96 22 15.24 22H12.36C9.64 22 8.29 22 7.44 21.15C6.6 20.31 6.6 18.94 6.6 16.22V11.4Z" Fill="#6B7280"/>
+                                                </Grid>
+                                            </Viewbox>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Edit / Delete buttons -->
+                                <StackPanel Grid.Row="0" Grid.RowSpan="5" Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
+                                            Spacing="8">
+                                    <Button Command="{Binding #Root.DataContext.EditEntryCommand}"
+                                            CommandParameter="{Binding}" Classes="secondary"
+                                            Padding="10" ToolTip.Tip="Edit">
+                                        <Viewbox Width="18" Height="18">
+                                            <Grid>
+                                                <Path Data="M21.28 6.4L11.74 15.94C10.79 16.89 7.97 17.33 7.34 16.7C6.71 16.07 7.14 13.25 8.09 12.3L17.64 2.75C17.88 2.49 18.16 2.29 18.48 2.14C18.8 2 19.14 1.92 19.49 1.91C19.84 1.91 20.18 1.97 20.51 2.1C20.83 2.23 21.12 2.42 21.37 2.67C21.61 2.92 21.81 3.21 21.94 3.54C22.07 3.86 22.13 4.21 22.12 4.55C22.11 4.9 22.03 5.25 21.89 5.56C21.74 5.88 21.54 6.17 21.28 6.4Z"
+                                                      Stroke="#374151" StrokeThickness="1.5" Fill="Transparent" StrokeLineCap="Round" StrokeJoin="Round"/>
+                                                <Path Data="M11 4H6C4.94 4 3.92 4.42 3.17 5.17C2.42 5.92 2 6.94 2 8V18C2 19.06 2.42 20.08 3.17 20.83C3.92 21.58 4.94 22 6 22H17C19.21 22 20 20.2 20 18V13"
+                                                      Stroke="#374151" StrokeThickness="1.5" Fill="Transparent" StrokeLineCap="Round" StrokeJoin="Round"/>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Button>
+                                    <Button Command="{Binding #Root.DataContext.DeleteEntryCommand}"
+                                            CommandParameter="{Binding}" Classes="delete-btn"
+                                            ToolTip.Tip="Delete">
+                                        <Viewbox Width="18" Height="18">
+                                            <Grid>
+                                                <Path Data="M10,12 L10,17" Stroke="#DC2626" StrokeThickness="2" Fill="Transparent" StrokeLineCap="Round" StrokeJoin="Round"/>
+                                                <Path Data="M14,12 L14,17" Stroke="#DC2626" StrokeThickness="2" Fill="Transparent" StrokeLineCap="Round" StrokeJoin="Round"/>
+                                                <Path Data="M4,7 L20,7" Stroke="#DC2626" StrokeThickness="2" Fill="Transparent" StrokeLineCap="Round" StrokeJoin="Round"/>
+                                                <Path Data="M6,10 L6,18 C6,19.66 7.34,21 9,21 L15,21 C16.66,21 18,19.66 18,18 L18,10" Stroke="#DC2626" StrokeThickness="2" Fill="Transparent" StrokeLineCap="Round" StrokeJoin="Round"/>
+                                                <Path Data="M9,5 C9,3.9 9.9,3 11,3 L13,3 C14.1,3 15,3.9 15,5 L15,7 L9,7 L9,5 Z" Stroke="#DC2626" StrokeThickness="2" Fill="Transparent" StrokeLineCap="Round" StrokeJoin="Round"/>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

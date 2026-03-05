@@ -36,14 +36,13 @@ namespace PasswordManager.App.ViewModels
         [NotifyPropertyChangedFor(nameof(IsNotLoading))]
         private bool _isLoading;
 
-        /// <summary>
-        /// Validation error (from validators) or server error. Shown when both fields have input or after submit.
-        /// </summary>
+        [ObservableProperty]
+        private bool _isPasswordVisible;
+
         public string DisplayError => BothFieldsFilled ? (GetValidationError() ?? ErrorMessage) : ErrorMessage;
 
         public bool DisplayErrorVisible => !string.IsNullOrEmpty(DisplayError);
 
-        /// <summary>Convenience for binding "disable when loading" (e.g. Register button).</summary>
         public bool IsNotLoading => !IsLoading;
 
         private bool BothFieldsFilled =>
@@ -79,9 +78,6 @@ namespace PasswordManager.App.ViewModels
             && BothFieldsFilled
             && GetValidationError() == null;
 
-        /// <summary>
-        /// Uses Core validators (same as AuthService). Returns null if valid, otherwise first error message.
-        /// </summary>
         private string? GetValidationError()
         {
             var emailResult = _emailValidator.Validate(new EmailInput { Email = Email.Trim() });
@@ -94,9 +90,6 @@ namespace PasswordManager.App.ViewModels
             return null;
         }
 
-        /// <summary>
-        /// Raised when login succeeds. MainWindow/coordinator can subscribe to navigate to VaultList.
-        /// </summary>
         public event EventHandler? LoginSuccessful;
 
         public LoginViewModel(IAuthService authService)

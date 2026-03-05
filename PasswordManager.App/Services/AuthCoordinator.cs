@@ -1,6 +1,8 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Microsoft.Extensions.DependencyInjection;
 using PasswordManager.App.Views;
-using System.Windows;
 
 namespace PasswordManager.App.Services
 {
@@ -29,6 +31,10 @@ namespace PasswordManager.App.Services
         public void OnLoginSuccess(Window loginWindow)
         {
             var main = MainWindow;
+
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                desktop.MainWindow = main;
+
             main.Show();
             main.Activate();
             loginWindow.Close();

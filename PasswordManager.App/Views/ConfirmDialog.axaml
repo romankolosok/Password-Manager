@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PasswordManager.App.Views.ConfirmDialog"
+        Title="Confirm" Width="380" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+    <Grid Margin="24" RowDefinitions="*,Auto">
+        <TextBlock Grid.Row="0" x:Name="MessageText" TextWrapping="Wrap" FontSize="14" Foreground="#374151"
+                   Margin="0,0,0,24"/>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+            <Button Content="No" Classes="secondary" Click="No_Click" MinWidth="80"/>
+            <Button Content="Yes" Classes="primary" Click="Yes_Click" MinWidth="80"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,8 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PasswordManager.App.Services;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
-using System.Windows;
 
 namespace PasswordManager.App.ViewModels
 {
@@ -12,6 +12,7 @@ namespace PasswordManager.App.ViewModels
         private readonly IPasswordGenerator _passwordGenerator;
         private readonly ISessionService _sessionService;
         private readonly IPasswordStrengthChecker _passwordStrengthChecker;
+        private readonly IDialogService _dialogService;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PasswordStrength))]
@@ -36,7 +37,6 @@ namespace PasswordManager.App.ViewModels
         [NotifyPropertyChangedFor(nameof(IsPasswordEmpty))]
         private string _password = string.Empty;
 
-        /// <summary>True when Password is null or empty (for placeholder visibility).</summary>
         public bool IsPasswordEmpty => string.IsNullOrEmpty(Password);
 
         [ObservableProperty]
@@ -55,7 +55,6 @@ namespace PasswordManager.App.ViewModels
         [NotifyPropertyChangedFor(nameof(ErrorMessageVisible))]
         private string _errorMessage = string.Empty;
 
-        /// <summary>True when ErrorMessage is not empty (for visibility binding).</summary>
         public bool ErrorMessageVisible => !string.IsNullOrWhiteSpace(ErrorMessage);
 
         [ObservableProperty]
@@ -64,7 +63,6 @@ namespace PasswordManager.App.ViewModels
         [ObservableProperty]
         private string _passwordStrengthLabel = string.Empty;
 
-        /// <summary>Zxcvbn feedback/suggestions for the current password (for info tooltip).</summary>
         [ObservableProperty]
         private string _passwordStrengthFeedback = string.Empty;
 
@@ -98,12 +96,14 @@ namespace PasswordManager.App.ViewModels
         public EntryDetailViewModel(IVaultService vaultService,
             IPasswordGenerator passwordGenerator,
             ISessionService sessionService,
-            IPasswordStrengthChecker passwordStrengthChecker)
+            IPasswordStrengthChecker passwordStrengthChecker,
+            IDialogService dialogService)
         {
             _vaultService = vaultService;
             _passwordGenerator = passwordGenerator;
             _sessionService = sessionService;
             _passwordStrengthChecker = passwordStrengthChecker;
+            _dialogService = dialogService;
         }
 
         public void LoadEntry(VaultEntry entry)
@@ -138,7 +138,6 @@ namespace PasswordManager.App.ViewModels
             UpdatePasswordStrength();
         }
 
-        /// <summary>Returns true if there are unsaved changes (for abandon-changes dialog).</summary>
         public bool HasUnsavedChanges =>
             IsEditing
                 ? HasChangesFromLoaded()
@@ -228,14 +227,15 @@ namespace PasswordManager.App.ViewModels
         }
 
         [RelayCommand]
-        private void Cancel()
+        private async Task CancelAsync()
         {
-            if (HasUnsavedChanges && MessageBox.Show(
+            if (HasUnsavedChanges)
+            {
+                bool confirmed = await _dialogService.ConfirmAsync(
                     "You have unsaved data. Abandon changes?",
-                    "Confirm",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question) != MessageBoxResult.Yes)
-                return;
+                    "Confirm");
+                if (!confirmed) return;
+            }
             Cancelled?.Invoke(this, EventArgs.Empty);
         }
 
@@ -243,6 +243,18 @@ namespace PasswordManager.App.ViewModels
         private void TogglePasswordVisibility()
         {
             IsPasswordVisible = !IsPasswordVisible;
+        }
+
+        [RelayCommand]
+        private void IncrementLength()
+        {
+            if (GeneratorLength < 128) GeneratorLength++;
+        }
+
+        [RelayCommand]
+        private void DecrementLength()
+        {
+            if (GeneratorLength > 4) GeneratorLength--;
         }
 
         partial void OnPasswordChanged(string value)

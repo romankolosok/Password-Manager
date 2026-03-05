@@ -110,3 +110,10 @@ secrets/
 
 # Supabase local environment (CLI-generated)
 supabase/.env
+
+# dotnet publish outputs
+**/publish/
+
+# Local release bundles
+PasswordManager-*.zip
+PasswordManager-*.tar.gz

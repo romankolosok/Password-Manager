@@ -1,3 +1,6 @@
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PasswordManager.App.Services;
@@ -7,7 +10,6 @@ using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Services.Implementations;
 using PasswordManager.Core.Services.Interfaces;
 using System.IO;
-using System.Windows;
 
 namespace PasswordManager.App
 {
@@ -15,18 +17,17 @@ namespace PasswordManager.App
     {
         public IServiceProvider? ServiceProvider { get; private set; }
 
-        protected override async void OnStartup(StartupEventArgs e)
+        public override void Initialize()
         {
-            base.OnStartup(e);
+            AvaloniaXamlLoader.Load(this);
+        }
 
-            // STEP 1: Build configuration (supports environment-specific overrides and build config)
+        public override async void OnFrameworkInitializationCompleted()
+        {
             var environment =
                 Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
                 ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
-            // If no explicit environment is set, fall back to build configuration:
-            // - Debug build => Development (local Supabase)
-            // - Release build => Production (cloud Supabase)
 #if DEBUG
             environment ??= "Development";
 #else
@@ -41,7 +42,6 @@ namespace PasswordManager.App
                 .AddUserSecrets<App>()
                 .Build();
 
-            // Prefer environment variables (for CI) but fall back to configuration files.
             string? supabaseUrl =
                 Environment.GetEnvironmentVariable("Supabase__Url") ??
                 configuration["Supabase:Url"];
@@ -57,23 +57,20 @@ namespace PasswordManager.App
                     "in appsettings.json / appsettings.{Environment}.json or via Supabase__Url and Supabase__AnonKey environment variables.");
             }
 
-            // Create service collection and register everything
             var services = new ServiceCollection();
 
             services.AddSingleton<IConfiguration>(configuration);
 
-            // Supabase client
             var options = new Supabase.SupabaseOptions
             {
                 AutoRefreshToken = true,
-                AutoConnectRealtime = false // Only enable if using realtime features
+                AutoConnectRealtime = false
             };
             var supabase = new Supabase.Client(supabaseUrl, supabaseAnonKey, options);
             await supabase.InitializeAsync();
 
             services.AddSingleton(supabase);
 
-            // Core services
             services.AddSingleton<ICryptoService, CryptoService>();
             services.AddSingleton<ISessionService, SessionService>();
             services.AddSingleton<IAuthService, AuthService>();
@@ -82,13 +79,13 @@ namespace PasswordManager.App
             services.AddSingleton<IPasswordStrengthChecker, ZxcvbnPasswordStrengthChecker>();
             services.AddSingleton<IPasswordGenerator, PasswordGenerator>();
 
-            services.AddSingleton<IClipboardService, WpfClipboardService>();
+            services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
             services.AddSingleton<IAuthCoordinator, AuthCoordinator>();
             services.AddSingleton<IUserProfileService, UserProfileService>();
             services.AddSingleton<ISupabaseExceptionMapper, SupabaseExceptionMapper>();
+            services.AddSingleton<IDialogService, DialogService>();
             services.AddLogging();
 
-            // ViewModels and Views
             services.AddTransient<LoginViewModel>();
             services.AddTransient<RegisterViewModel>();
             services.AddTransient<VaultListViewModel>();
@@ -99,12 +96,17 @@ namespace PasswordManager.App
             services.AddTransient<EntryDetailView>();
             services.AddSingleton<MainWindow>();
 
-            //Build the service provider
             ServiceProvider = services.BuildServiceProvider();
 
-            //Show the login window via coordinator
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnLastWindowClose;
+            }
+
             var coordinator = ServiceProvider.GetRequiredService<IAuthCoordinator>();
             coordinator.ShowLogin();
+
+            base.OnFrameworkInitializationCompleted();
         }
     }
 }

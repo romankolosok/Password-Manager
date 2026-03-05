@@ -1,9 +1,10 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PasswordManager.App.Services;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
 using System.Collections.ObjectModel;
-using System.Windows;
 
 namespace PasswordManager.App.ViewModels
 {
@@ -13,6 +14,7 @@ namespace PasswordManager.App.ViewModels
         private readonly IAuthService _authService;
         private readonly IClipboardService _clipboardService;
         private readonly ISessionService _sessionService;
+        private readonly IDialogService _dialogService;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(StatusText))]
@@ -31,10 +33,8 @@ namespace PasswordManager.App.ViewModels
         [ObservableProperty]
         private bool _isLoading;
 
-        /// <summary>Logged-in user email for display (Account: email).</summary>
         public string? CurrentUserEmail => _authService.CurrentUserEmail;
 
-        /// <summary>Status line: entry count and optional clipboard message.</summary>
         public string StatusText => Entries.Count == 1
             ? "1 entry"
             : $"{Entries.Count} entries";
@@ -81,12 +81,11 @@ namespace PasswordManager.App.ViewModels
         private async Task DeleteEntryAsync(VaultEntry? entry)
         {
             if (entry == null) return;
-            if (MessageBox.Show(
-                    $"Delete entry for \"{entry.WebsiteName ?? "Unknown"}\"?",
-                    "Confirm Delete",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question) != MessageBoxResult.Yes)
-                return;
+
+            bool confirmed = await _dialogService.ConfirmAsync(
+                $"Delete entry for \"{entry.WebsiteName ?? "Unknown"}\"?",
+                "Confirm Delete");
+            if (!confirmed) return;
 
             Result result = await _vaultService.DeleteEntryAsync(entry.Id.ToString());
             if (result.Success)
@@ -97,7 +96,7 @@ namespace PasswordManager.App.ViewModels
             }
             else
             {
-                MessageBox.Show(result.Message ?? "Failed to delete.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                await _dialogService.ConfirmAsync(result.Message ?? "Failed to delete.", "Error");
             }
             _sessionService.ResetInactivityTimer();
         }
@@ -154,29 +153,28 @@ namespace PasswordManager.App.ViewModels
             ExecuteSearch();
         }
 
-        /// <summary>Raised to navigate to add (null) or edit (entry).</summary>
         public event EventHandler<VaultEntry?>? NavigateToEntryDetail;
 
-        /// <summary>Raised when vault is locked; navigate back to login.</summary>
         public event EventHandler? NavigateToLogin;
 
         public VaultListViewModel(
             IVaultService vaultService,
             IAuthService authService,
             IClipboardService clipboardService,
-            ISessionService sessionService)
+            ISessionService sessionService,
+            IDialogService dialogService)
         {
             _vaultService = vaultService;
             _authService = authService;
             _clipboardService = clipboardService;
             _sessionService = sessionService;
+            _dialogService = dialogService;
 
             _sessionService.VaultLocked += OnVaultLocked;
         }
 
         private bool _isAttached = true;
 
-        /// <summary>Re-subscribes to session events after Detach. Call when this ViewModel is shown again after lock.</summary>
         public void Attach()
         {
             if (!_isAttached)
@@ -186,7 +184,6 @@ namespace PasswordManager.App.ViewModels
             }
         }
 
-        /// <summary>Unsubscribes from session events. Call when this ViewModel is no longer displayed to allow GC.</summary>
         public void Detach()
         {
             if (_isAttached)
@@ -198,7 +195,7 @@ namespace PasswordManager.App.ViewModels
 
         private void OnVaultLocked(object? sender, EventArgs e)
         {
-            Application.Current.Dispatcher.Invoke(() =>
+            Dispatcher.UIThread.Post(() =>
             {
                 NavigateToLogin?.Invoke(this, EventArgs.Empty);
             });

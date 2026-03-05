@@ -1,5 +1,7 @@
 using System;
-using System.Windows;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
 using Microsoft.Extensions.DependencyInjection;
 using PasswordManager.App.Services;
 using PasswordManager.App.ViewModels;
@@ -20,25 +22,44 @@ namespace PasswordManager.App
         {
             _serviceProvider = serviceProvider;
             InitializeComponent();
-            PreviewMouseMove += ResetInactivityTimer;
-            PreviewKeyDown += ResetInactivityTimer;
+            Opened += MainWindow_Opened;
+            PointerMoved += ResetInactivityTimer;
+            KeyDown += ResetInactivityTimer;
         }
 
-        private void ResetInactivityTimer(object sender, EventArgs e)
+        private void ResetInactivityTimer(object? sender, EventArgs e)
         {
             var session = _serviceProvider.GetService<ISessionService>();
             if (session?.IsActive() == true)
                 session.ResetInactivityTimer();
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        private void MainWindow_Opened(object? sender, EventArgs e)
         {
             if (_vaultContentLoaded) return;
             _vaultContentLoaded = true;
             ShowVaultListView();
         }
 
-        /// <summary>Navigates to the vault list view and loads entries.</summary>
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+            if (change.Property == IsVisibleProperty && IsVisible && _wasHiddenForLock)
+            {
+                _wasHiddenForLock = false;
+
+                if (MainContent.Content is EntryDetailView entryDetailView
+                    && entryDetailView.DataContext is EntryDetailViewModel entryVm)
+                {
+                    entryVm.EntrySaved -= OnEntryDetailSaved;
+                    entryVm.Cancelled -= OnEntryDetailCancelled;
+                }
+
+                UnsubscribeFromVaultListViewModel();
+                ShowVaultListView();
+            }
+        }
+
         private void ShowVaultListView()
         {
             var viewModel = _serviceProvider.GetRequiredService<VaultListViewModel>();
@@ -52,7 +73,6 @@ namespace PasswordManager.App
             _ = viewModel.LoadEntriesCommand.ExecuteAsync(null);
         }
 
-        /// <summary>Navigates to add (entry=null) or edit (entry) view.</summary>
         private void ShowEntryDetailView(VaultEntry? entry)
         {
             var viewModel = _serviceProvider.GetRequiredService<EntryDetailViewModel>();
@@ -89,7 +109,7 @@ namespace PasswordManager.App
             }
         }
 
-        private void OnNavigateToLogin(object? sender, System.EventArgs e)
+        private void OnNavigateToLogin(object? sender, EventArgs e)
         {
             if (sender is VaultListViewModel vm)
             {
@@ -107,21 +127,6 @@ namespace PasswordManager.App
                 coordinator.ShowLogin();
                 Hide();
             }
-        }
-
-        private void MainWindow_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
-        {
-            if (!IsVisible || !_wasHiddenForLock) return;
-            _wasHiddenForLock = false;
-
-            if (MainContent.Content is EntryDetailView entryDetailView && entryDetailView.DataContext is EntryDetailViewModel entryVm)
-            {
-                entryVm.EntrySaved -= OnEntryDetailSaved;
-                entryVm.Cancelled -= OnEntryDetailCancelled;
-            }
-
-            UnsubscribeFromVaultListViewModel();
-            ShowVaultListView();
         }
 
         private void OnNavigateToEntryDetail(object? sender, VaultEntry? e)

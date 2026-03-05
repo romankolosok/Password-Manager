@@ -1,0 +1,6 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PasswordManager.App.MainWindow"
+        Title="VaultKey" Height="600" Width="960">
+    <ContentControl x:Name="MainContent"/>
+</Window>

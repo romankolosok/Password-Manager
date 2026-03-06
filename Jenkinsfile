@@ -10,7 +10,7 @@ pipeline {
         APP_PROJECT_PATH = 'PasswordManager.App/PasswordManager.App.csproj'
         GITHUB_TOKEN = credentials('github-token-id')
         REPO_OWNER = 'romankolosok'
-        REPO_NAME = 'PasswordManager'
+        REPO_NAME = 'Password-Manager'
     }
 
     stages {

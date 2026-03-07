@@ -122,8 +122,8 @@ pipeline {
                 """
 
                 sh '''
-                    cd publish/linux-x64 && tar czf ../../PasswordManager-linux-x64.tar.gz . && cd ../..
-                    cd publish/win-x64  && zip -r ../../PasswordManager-win-x64.zip .   && cd ../..
+                    cd publish/linux-x64 && tar czf ../../Crypty-linux-x64.tar.gz . && cd ../..
+                    cd publish/win-x64  && zip -r ../../Crypty-win-x64.zip .   && cd ../..
                 '''
             }
         }
@@ -153,7 +153,7 @@ pipeline {
                                 "tag_name": "${tag}", \
                                 "target_commitish": "${commitSha}", \
                                 "name": "${tag}", \
-                                "body": "Automated release ${tag} (${shortSha})\\n\\nPlatforms:\\n- Linux x64\\n- Windows x64", \
+                                "body": "Automated release ${tag} (${shortSha})\\n\\nPlatforms:\\n- Linux x64\\n- Windows x64\\n\\n**Windows:** If SmartScreen blocks the app, right-click Crypty.exe → Properties → Unblock, then run.", \
                                 "draft": false, \
                                 "prerelease": false \
                             }' \
@@ -165,14 +165,14 @@ pipeline {
                         curl -sf -X POST \
                             -H "Authorization: token ${GITHUB_TOKEN}" \
                             -H "Content-Type: application/gzip" \
-                            --data-binary @PasswordManager-linux-x64.tar.gz \
-                            "https://uploads.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/\${RELEASE_ID}/assets?name=PasswordManager-linux-x64.tar.gz"
+                            --data-binary @Crypty-linux-x64.tar.gz \
+                            "https://uploads.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/\${RELEASE_ID}/assets?name=Crypty-linux-x64.tar.gz"
 
                         curl -sf -X POST \
                             -H "Authorization: token ${GITHUB_TOKEN}" \
                             -H "Content-Type: application/zip" \
-                            --data-binary @PasswordManager-win-x64.zip \
-                            "https://uploads.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/\${RELEASE_ID}/assets?name=PasswordManager-win-x64.zip"
+                            --data-binary @Crypty-win-x64.zip \
+                            "https://uploads.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/\${RELEASE_ID}/assets?name=Crypty-win-x64.zip"
                     """
 
                     echo "Released ${tag} with Linux and Windows builds"

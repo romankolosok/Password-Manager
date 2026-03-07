@@ -17,8 +17,8 @@ namespace PasswordManager.Core.Models
 
     public class Result<T> : Result
     {
-        public T Value { get; init; }
+        public T Value { get; init; } = default!;
         static public Result<T> Ok(T data) => new Result<T> { Success = true, Value = data };
-        static public new Result<T> Fail(string message) => new Result<T> { Success = false, Message = message, Value = default };
+        static public new Result<T> Fail(string message) => new Result<T> { Success = false, Message = message, Value = default! };
     }
 }

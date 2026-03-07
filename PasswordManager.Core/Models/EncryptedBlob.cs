@@ -7,7 +7,7 @@ namespace PasswordManager.Core.Models
     public class EncryptedBlob
     {
         public byte[] Nonce { get; set; } = new byte[12];
-        public byte[] Ciphertext { get; set; }
+        public byte[] Ciphertext { get; set; } = Array.Empty<byte>();
         public byte[] Tag { get; set; } = new byte[16];
 
         public String ToBase64String()

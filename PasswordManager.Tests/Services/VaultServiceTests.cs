@@ -1,4 +1,4 @@
-﻿using Moq;
+using Moq;
 using PasswordManager.Core.Entities;
 using PasswordManager.Core.Models;
 using PasswordManager.Tests.Fixtures;
@@ -750,11 +750,11 @@ namespace PasswordManager.Tests.Services
             // All searchable fields are null — should not match and must not throw.
             var nullFieldsEntry = new VaultEntry
             {
-                WebsiteName = null,
-                Username = null,
-                Url = null,
-                Notes = null,
-                Category = null,
+                WebsiteName = null!,
+                Username = null!,
+                Url = null!,
+                Notes = null!,
+                Category = null!,
             };
 
             var matchingEntry = new VaultEntry { WebsiteName = "GitHub" };

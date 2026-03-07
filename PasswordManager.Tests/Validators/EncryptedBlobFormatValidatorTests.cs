@@ -1,4 +1,4 @@
-﻿using PasswordManager.Core.Validators;
+using PasswordManager.Core.Validators;
 
 namespace PasswordManager.Tests.Validators
 {
@@ -6,11 +6,11 @@ namespace PasswordManager.Tests.Validators
     {
         private readonly EncryptedBlobFormatValidator _validator = new();
 
-        private EncryptedBlobParseInput Blob(string b64)
+        private EncryptedBlobParseInput Blob(string? b64)
         {
             return new EncryptedBlobParseInput
             {
-                Base64 = b64
+                Base64 = b64 ?? string.Empty
             };
         }
 
@@ -18,13 +18,13 @@ namespace PasswordManager.Tests.Validators
         {
             yield return new object[] { "" };
             yield return new object[] { "            " };
-            yield return new object[] { null };
+            yield return new object[] { null! };
             yield return new object[] { Convert.ToBase64String(new byte[0]) };
         }
 
         [Theory]
         [MemberData(nameof(BlobsInvalidB64))]
-        public void EmptyBase64ReturnsFailure(string b64)
+        public void EmptyBase64ReturnsFailure(string? b64)
         {
             var blob = Blob(b64);
             var result = _validator.Validate(blob);

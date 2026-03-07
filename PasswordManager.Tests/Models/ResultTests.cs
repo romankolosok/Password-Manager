@@ -1,4 +1,4 @@
-﻿using PasswordManager.Core.Models;
+using PasswordManager.Core.Models;
 
 namespace PasswordManager.Tests.Models
 {
@@ -79,7 +79,7 @@ namespace PasswordManager.Tests.Models
         public static IEnumerable<object[]> GetDefaultValueTestData()
         {
             yield return new object[] { default(int) };
-            yield return new object[] { default(string) };
+            yield return new object[] { default(string)! };
             yield return new object[] { default(bool) };
             yield return new object[] { default(decimal) };
             yield return new object[] { default(DateTime) };

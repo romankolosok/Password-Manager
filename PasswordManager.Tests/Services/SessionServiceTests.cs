@@ -133,7 +133,7 @@ namespace PasswordManager.Tests.Services
         public static IEnumerable<object[]> ValidUserData()
         {
             yield return new object[] { Guid.NewGuid(), "user@user.user", "token" };
-            yield return new object[] { Guid.NewGuid(), "user@user.user", null };
+            yield return new object[] { Guid.NewGuid(), "user@user.user", null! };
         }
 
         [Theory]

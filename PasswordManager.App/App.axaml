@@ -3,6 +3,11 @@
              x:Class="PasswordManager.App.App"
              RequestedThemeVariant="Light">
 
+    <Application.Resources>
+        <!-- Lock icon geometry (from SVG/crypty style) - use with PathIcon/Path, no file loading -->
+        <StreamGeometry x:Key="CryptyLockIcon">M12,2 C9.24,2 7,4.24 7,7 L7,9 L5,9 C3.9,9 3,9.9 3,11 L3,20 C3,21.1 3.9,22 5,22 L19,22 C20.1,22 21,21.1 21,20 L21,11 C21,9.9 20.1,9 19,9 L17,9 L17,7 C17,4.24 14.76,2 12,2 Z M12,4 C13.66,4 15,5.34 15,7 L15,9 L9,9 L9,7 C9,5.34 10.34,4 12,4 Z</StreamGeometry>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
 

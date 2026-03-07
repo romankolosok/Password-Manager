@@ -9,7 +9,6 @@ using PasswordManager.App.Views;
 using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Services.Implementations;
 using PasswordManager.Core.Services.Interfaces;
-using System.IO;
 
 namespace PasswordManager.App
 {
@@ -35,11 +34,10 @@ namespace PasswordManager.App
 #endif
 
             IConfiguration configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
+                .SetBasePath(AppContext.BaseDirectory)
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true)
                 .AddEnvironmentVariables()
-                .AddUserSecrets<App>()
                 .Build();
 
             string? supabaseUrl =

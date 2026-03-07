@@ -106,7 +106,10 @@ namespace PasswordManager.Core.Services.Implementations
             if (signUpValidation != null)
                 return signUpValidation;
 
-            var authUserId = Guid.Parse(session!.User!.Id);
+            var userIdStr = session!.User!.Id;
+            if (string.IsNullOrEmpty(userIdStr))
+                return Result.Fail("Invalid user ID.");
+            var authUserId = Guid.Parse(userIdStr);
             await _supabase.Auth.SignOut();
             _logger.LogInformation("User {UserId} registered successfully; redirecting to login", authUserId);
             return Result.Ok();
@@ -130,7 +133,12 @@ namespace PasswordManager.Core.Services.Implementations
                 return invalidSessionResult;
             }
 
-            var authUserId = Guid.Parse(session!.User!.Id);
+            var userIdStr = session!.User!.Id;
+            if (string.IsNullOrEmpty(userIdStr))
+            {
+                return Result.Fail("Invalid user ID.");
+            }
+            var authUserId = Guid.Parse(userIdStr);
 
             // Set temporary session for profile retrieval
             _sessionService.SetUser(authUserId, session.User.Email ?? email, session.AccessToken);

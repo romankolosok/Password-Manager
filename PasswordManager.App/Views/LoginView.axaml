@@ -1,27 +1,17 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Svg.Controls.Skia.Avalonia"
         x:Class="PasswordManager.App.Views.LoginView"
-        Title="VaultKey - Sign In" Height="620" Width="440"
+        Title="Crypty - Sign In" Height="620" Width="440"
         Background="White" WindowStartupLocation="CenterScreen">
     <Grid>
         <StackPanel Width="320" Margin="40,36" HorizontalAlignment="Center" VerticalAlignment="Center">
 
-            <!-- Logo -->
-            <Border Width="56" Height="56" HorizontalAlignment="Center" CornerRadius="10" Margin="0,0,0,16">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                        <GradientStop Color="#1E3A5F" Offset="0"/>
-                        <GradientStop Color="#0D9488" Offset="1"/>
-                    </LinearGradientBrush>
-                </Border.Background>
-                <Viewbox Width="28" Height="28" Margin="14">
-                    <Path Data="M12,2 C9.24,2 7,4.24 7,7 L7,9 L5,9 C3.9,9 3,9.9 3,11 L3,20 C3,21.1 3.9,22 5,22 L19,22 C20.1,22 21,21.1 21,20 L21,11 C21,9.9 20.1,9 19,9 L17,9 L17,7 C17,4.24 14.76,2 12,2 Z M12,4 C13.66,4 15,5.34 15,7 L15,9 L9,9 L9,7 C9,5.34 10.34,4 12,4 Z"
-                          Fill="White" Stroke="White" StrokeThickness="0.5"/>
-                </Viewbox>
+            <!-- Logo: Svg control (Svg.Controls.Skia.Avalonia), Path to asset -->
+            <Border Width="260" Height="260" HorizontalAlignment="Center" Margin="0,-84,0,-36">
+                <svg:Svg Path="avares://Crypty/Assets/crypty-logo-text.svg" Stretch="Uniform"/>
             </Border>
 
-            <!-- App name -->
-            <TextBlock Text="VaultKey" HorizontalAlignment="Center" FontSize="26" FontWeight="Bold" Foreground="#111827" Margin="0,0,0,4"/>
             <TextBlock Text="Secure your passwords, unlock peace of mind" HorizontalAlignment="Center" FontSize="13" Foreground="#6B7280" Margin="0,0,0,32"/>
 
             <!-- Email -->

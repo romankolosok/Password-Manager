@@ -8,7 +8,7 @@ namespace PasswordManager.Core.Validators
     /// <summary>
     /// Input for validating a password (master password, vault entry password, etc.).
     /// </summary>
-    internal class PasswordInput
+    public class PasswordInput
     {
         public string Password { get; set; } = string.Empty;
     }
@@ -18,7 +18,7 @@ namespace PasswordManager.Core.Validators
     /// vault entry passwords, or any password that should match <see cref="PasswordPolicy"/> and
     /// <see cref="T:PasswordManager.Core.Services.Interfaces.IPasswordGenerator"/> output.
     /// </summary>
-    internal class PasswordValidator : AbstractValidator<PasswordInput>
+    public class PasswordValidator : AbstractValidator<PasswordInput>
     {
         public PasswordValidator()
         {

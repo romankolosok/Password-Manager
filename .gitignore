@@ -113,6 +113,8 @@ supabase/.env
 
 # dotnet publish outputs
 **/publish/
+PasswordManager.Setup/PublishInput/
+Installer/Output/
 
 # Local release bundles
 PasswordManager-*.zip

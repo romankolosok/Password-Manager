@@ -30,42 +30,65 @@ pipeline {
         stage('Test & Coverage') {
             steps {
                 sh '''
-                    # Always run tests against an isolated local Supabase (Docker),
-                    # even on main, so we never pollute the production database.
-                    # App binaries themselves will use remote Supabase at runtime via env vars.
+                    # Integration tests rely on a local Supabase (Docker) stack.
+                    # In CI, multiple branch jobs can run on the same agent; Supabase uses global
+                    # container names based on project_id, so concurrent starts/stops can interfere.
+                    #
+                    # We serialize Supabase usage per agent with flock, and fail fast if Supabase
+                    # fails to start (rather than running tests with empty env vars).
 
-                    # Ensure any previous local stack is stopped so we start clean.
-                    supabase stop || true
+                    LOCK_FILE="/tmp/passwordmanager-supabase-ci.lock"
 
-                    # Work around occasional leftover DB container name conflicts.
-                    docker rm -f supabase_db_PasswordManager 2>/dev/null || true
+                    if command -v flock >/dev/null 2>&1; then
+                      flock -w 600 "$LOCK_FILE" sh -eu -c '
+                        supabase stop || true
+                        trap "supabase stop || true" EXIT
 
-                    # Start local Supabase stack; the CLI may still return a non-zero
-                    # exit code even if containers are up (e.g. when reading logs).
-                    # Do not fail the build on that condition.
-                    supabase start || echo "supabase start reported an error; continuing (containers may still be running)"
-                    # Reset schema; if this fails (e.g. transient container issue),
-                    # log it but still attempt to run tests against whatever state exists.
-                    supabase db reset || echo "supabase db reset failed; continuing with existing database state"
+                        supabase start --debug
+                        supabase db reset
 
-                    # Export local Supabase connection settings from CLI status.
-                    eval "$(supabase status --output env)"
-                    export Supabase__Url="$API_URL"
-                    export Supabase__AnonKey="$ANON_KEY"
-                    export Supabase__ServiceRoleKey="$SERVICE_ROLE_KEY"
+                        eval "$(supabase status --output env)"
+                        [ -n "${API_URL:-}" ] && [ -n "${ANON_KEY:-}" ] && [ -n "${SERVICE_ROLE_KEY:-}" ]
 
-                    dotnet test ${TESTS_PROJECT_PATH} \
-                        --configuration Release \
-                        --no-build \
-                        --logger "junit;LogFilePath=test-results.xml" \
-                        /p:CollectCoverage=true \
-                        /p:CoverletOutputFormat=cobertura \
-                        /p:CoverletOutput=coverage.cobertura.xml
+                        export Supabase__Url="$API_URL"
+                        export Supabase__AnonKey="$ANON_KEY"
+                        export Supabase__ServiceRoleKey="$SERVICE_ROLE_KEY"
+
+                        dotnet test ${TESTS_PROJECT_PATH} \
+                            --configuration Release \
+                            --no-build \
+                            --logger "junit;LogFilePath=test-results.xml" \
+                            /p:CollectCoverage=true \
+                            /p:CoverletOutputFormat=cobertura \
+                            /p:CoverletOutput=coverage.cobertura.xml
+                      '
+                    else
+                      echo "WARN: flock not available; running Supabase without an agent-level lock"
+                      supabase stop || true
+                      trap "supabase stop || true" EXIT
+
+                      supabase start --debug
+                      supabase db reset
+
+                      eval "$(supabase status --output env)"
+                      [ -n "${API_URL:-}" ] && [ -n "${ANON_KEY:-}" ] && [ -n "${SERVICE_ROLE_KEY:-}" ]
+
+                      export Supabase__Url="$API_URL"
+                      export Supabase__AnonKey="$ANON_KEY"
+                      export Supabase__ServiceRoleKey="$SERVICE_ROLE_KEY"
+
+                      dotnet test ${TESTS_PROJECT_PATH} \
+                          --configuration Release \
+                          --no-build \
+                          --logger "junit;LogFilePath=test-results.xml" \
+                          /p:CollectCoverage=true \
+                          /p:CoverletOutputFormat=cobertura \
+                          /p:CoverletOutput=coverage.cobertura.xml
+                    fi
                 '''
             }
             post {
                 always {
-                    sh 'supabase stop || true'
                     junit allowEmptyResults: true, testResults: '**/test-results.xml'
                     recordCoverage(
                         tools: [[parser: 'COBERTURA', pattern: '**/coverage.cobertura.xml']],
@@ -114,7 +137,11 @@ pipeline {
             }
             steps {
                 script {
-                    def tag = "v1.0.${env.BUILD_NUMBER}"
+                    def version = sh(
+                        script: "sed -n 's/.*<Version>\\([^<]*\\)<\\/Version>.*/\\1/p' ${env.APP_PROJECT_PATH} | tr -d ' \\t\\r'",
+                        returnStdout: true
+                    ).trim()
+                    def tag = version.startsWith('v') ? version : "v${version}"
                     def commitSha = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
                     def shortSha = commitSha.take(7)
 

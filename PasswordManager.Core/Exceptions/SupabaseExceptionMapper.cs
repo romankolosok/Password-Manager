@@ -24,12 +24,14 @@ namespace PasswordManager.Core.Exceptions
 
         private static Result MapGotrueException(GotrueException exception)
         {
-            // Map based on status code or exception type, not string matching
+            // Map based on status code where we have clear semantics; otherwise fall back to message-based mapping.
             return exception.StatusCode switch
             {
-                422 => Result.Fail("An account with this email already exists. Sign in instead."),
-                400 => Result.Fail("Invalid request. Please check your input."),
-                429 => Result.Fail("Too many attempts. Please try again later."),
+                422 => Result.Fail(AuthMessages.AccountAlreadyExists),
+                // 400 can mean many things (invalid credentials, email not confirmed, bad input, etc.);
+                // delegate to GetUserFriendlyMessage so we can inspect the message and distinguish cases.
+                400 => Result.Fail(GetUserFriendlyMessage(exception)),
+                429 => Result.Fail(AuthMessages.TooManyRequests),
                 _ => Result.Fail(GetUserFriendlyMessage(exception))
             };
         }
@@ -41,15 +43,21 @@ namespace PasswordManager.Core.Exceptions
             if (msg.Contains("already registered", StringComparison.OrdinalIgnoreCase) ||
                 msg.Contains("user_already_exists", StringComparison.OrdinalIgnoreCase))
             {
-                return "An account with this email already exists. Sign in instead.";
+                return AuthMessages.AccountAlreadyExists;
+            }
+
+            if (msg.Contains("email not confirmed", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("email_not_confirmed", StringComparison.OrdinalIgnoreCase))
+            {
+                return AuthMessages.EmailNotConfirmed;
             }
 
             if (msg.Contains("invalid", StringComparison.OrdinalIgnoreCase))
             {
-                return "Invalid email or password.";
+                return AuthMessages.InvalidCredentials;
             }
 
-            return "Authentication failed. Please try again.";
+            return AuthMessages.AuthFailed;
         }
     }
 }

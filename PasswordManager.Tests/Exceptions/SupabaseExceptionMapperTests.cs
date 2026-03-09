@@ -1,3 +1,4 @@
+using PasswordManager.Core;
 using PasswordManager.Core.Exceptions;
 using Supabase.Gotrue.Exceptions;
 
@@ -24,18 +25,18 @@ namespace PasswordManager.Tests.Exceptions
             var result = _mapper.MapAuthException(ex);
 
             Assert.False(result.Success);
-            Assert.Contains("already exists", result.Message);
+            Assert.Equal(AuthMessages.AccountAlreadyExists, result.Message);
         }
 
         [Fact]
-        public void MapAuthExceptionGotrueStatus400ReturnsInvalidRequest()
+        public void MapAuthExceptionGotrueStatus400ReturnsAuthFailedWhenMessageIsEmpty()
         {
             var ex = CreateGotrueException(400);
 
             var result = _mapper.MapAuthException(ex);
 
             Assert.False(result.Success);
-            Assert.Contains("Invalid request", result.Message);
+            Assert.Equal(AuthMessages.AuthFailed, result.Message);
         }
 
         [Fact]
@@ -46,7 +47,7 @@ namespace PasswordManager.Tests.Exceptions
             var result = _mapper.MapAuthException(ex);
 
             Assert.False(result.Success);
-            Assert.Contains("Too many attempts", result.Message);
+            Assert.Equal(AuthMessages.TooManyRequests, result.Message);
         }
 
         [Fact]
@@ -57,7 +58,7 @@ namespace PasswordManager.Tests.Exceptions
             var result = _mapper.MapAuthException(ex);
 
             Assert.False(result.Success);
-            Assert.Contains("already exists", result.Message);
+            Assert.Equal(AuthMessages.AccountAlreadyExists, result.Message);
         }
 
         [Fact]
@@ -68,7 +69,29 @@ namespace PasswordManager.Tests.Exceptions
             var result = _mapper.MapAuthException(ex);
 
             Assert.False(result.Success);
-            Assert.Contains("already exists", result.Message);
+            Assert.Equal(AuthMessages.AccountAlreadyExists, result.Message);
+        }
+
+        [Fact]
+        public void MapAuthExceptionGotrueEmailNotConfirmedReturnsEmailNotConfirmedMessage()
+        {
+            var ex = CreateGotrueException(400, "Email not confirmed");
+
+            var result = _mapper.MapAuthException(ex);
+
+            Assert.False(result.Success);
+            Assert.Equal(AuthMessages.EmailNotConfirmed, result.Message);
+        }
+
+        [Fact]
+        public void MapAuthExceptionGotrueEmailNotConfirmedSnakeCaseReturnsEmailNotConfirmedMessage()
+        {
+            var ex = CreateGotrueException(400, "email_not_confirmed");
+
+            var result = _mapper.MapAuthException(ex);
+
+            Assert.False(result.Success);
+            Assert.Equal(AuthMessages.EmailNotConfirmed, result.Message);
         }
 
         [Fact]
@@ -79,7 +102,7 @@ namespace PasswordManager.Tests.Exceptions
             var result = _mapper.MapAuthException(ex);
 
             Assert.False(result.Success);
-            Assert.Contains("Invalid email or password", result.Message);
+            Assert.Equal(AuthMessages.InvalidCredentials, result.Message);
         }
 
         [Fact]
@@ -90,7 +113,7 @@ namespace PasswordManager.Tests.Exceptions
             var result = _mapper.MapAuthException(ex);
 
             Assert.False(result.Success);
-            Assert.Contains("Authentication failed", result.Message);
+            Assert.Equal(AuthMessages.AuthFailed, result.Message);
         }
 
         [Fact]

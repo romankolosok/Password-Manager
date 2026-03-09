@@ -19,12 +19,9 @@ namespace PasswordManager.Core.Exceptions
 
         public const string InvalidCredentials =
             "Invalid email or password.";
-
-        public const string InvalidOtp =
-            "Invalid OTP code. Please check the code and try again.";
-
-        public const string OtpExpired =
-            "OTP code has expired. Please request a new one.";
+        
+        public const string OtpInvalidOrExpired =
+            "Invalid or expired OTP code. Please check the code or request a new one.";
 
         public const string AuthFailed =
             "Authentication failed. Please try again.";

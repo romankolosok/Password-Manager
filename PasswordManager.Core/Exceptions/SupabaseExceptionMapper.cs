@@ -52,6 +52,12 @@ namespace PasswordManager.Core.Exceptions
                 return AuthMessages.EmailNotConfirmed;
             }
 
+            if (msg.Contains("otp_expired", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("token has expired", StringComparison.OrdinalIgnoreCase))
+            {
+                return AuthMessages.OtpInvalidOrExpired;
+            }
+
             if (msg.Contains("invalid", StringComparison.OrdinalIgnoreCase))
             {
                 return AuthMessages.InvalidCredentials;

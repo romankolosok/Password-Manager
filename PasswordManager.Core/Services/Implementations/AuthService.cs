@@ -166,7 +166,7 @@ namespace PasswordManager.Core.Services.Implementations
                 var session = await _supabase.Auth.VerifyOTP(email, otpCode, Constants.EmailOtpType.Signup);
                 if (session?.User == null)
                 {
-                    return Result.Fail("Invalid OTP code. Please try again.");
+                    return Result.Fail(AuthMessages.OtpInvalidOrExpired);
                 }
                 return Result.Ok();
             }

@@ -40,6 +40,18 @@ namespace PasswordManager.Tests.Exceptions
         }
 
         [Fact]
+        public void MapAuthExceptionGotrueOtpExpiredErrorReturnsOtpInvalidOrExpired()
+        {
+            // GoTrue returns 403 with error_code otp_expired and msg "Token has expired or is invalid"
+            var ex = CreateGotrueException(403, "Token has expired or is invalid");
+
+            var result = _mapper.MapAuthException(ex);
+
+            Assert.False(result.Success);
+            Assert.Equal(AuthMessages.OtpInvalidOrExpired, result.Message);
+        }
+
+        [Fact]
         public void MapAuthExceptionGotrueStatus429ReturnsTooManyAttempts()
         {
             var ex = CreateGotrueException(429);

@@ -20,16 +20,28 @@ namespace PasswordManager.App.Views
         private void OnDataContextChanged(object? sender, System.EventArgs e)
         {
             if (_subscribedVm != null)
+            {
                 _subscribedVm.LoginSuccessful -= OnLoginSuccessful;
+                _subscribedVm.EmailNotConfirmed -= OnEmailNotConfirmed;
+            }
 
             _subscribedVm = DataContext as LoginViewModel;
             if (_subscribedVm != null)
+            {
                 _subscribedVm.LoginSuccessful += OnLoginSuccessful;
+                _subscribedVm.EmailNotConfirmed += OnEmailNotConfirmed;
+            }
         }
 
         private void OnLoginSuccessful(object? sender, System.EventArgs e)
         {
             Coordinator?.OnLoginSuccess(this);
+        }
+
+        private void OnEmailNotConfirmed(object? sender, System.EventArgs e)
+        {
+            if (sender is LoginViewModel vm)
+                Coordinator?.RequestConfirmOtpFromLogin(this, vm.Email.Trim());
         }
 
         private void RegisterButton_Click(object? sender, RoutedEventArgs e)

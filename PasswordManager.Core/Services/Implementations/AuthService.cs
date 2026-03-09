@@ -304,7 +304,7 @@ namespace PasswordManager.Core.Services.Implementations
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Login failed for {Email}", email);
-                return Result<Session>.Fail("Invalid email or password.");
+                return Result<Session>.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }
 

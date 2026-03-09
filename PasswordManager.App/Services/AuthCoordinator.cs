@@ -84,6 +84,22 @@ namespace PasswordManager.App.Services
             _loginWindow?.Activate();
         }
 
+        public void RequestConfirmOtpFromLogin(Window loginWindow, string email)
+        {
+            _loginWindow = loginWindow;
+            loginWindow.Hide();
 
+            var confirmOtpView = _serviceProvider.GetRequiredService<ConfirmOtpView>();
+            confirmOtpView.Closed += (_, _) =>
+            {
+                loginWindow.Show();
+                _loginWindow = loginWindow;
+            };
+            var confirmOtpVm = _serviceProvider.GetRequiredService<ViewModels.ConfirmOtpViewModel>();
+            confirmOtpVm.Email = email;
+            confirmOtpView.DataContext = confirmOtpVm;
+            confirmOtpView.Coordinator = this;
+            confirmOtpView.Show();
+        }
     }
 }

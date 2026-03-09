@@ -29,7 +29,8 @@ namespace PasswordManager.App.Views
 
         private void OnRegisterSuccessful(object? sender, System.EventArgs e)
         {
-            Coordinator?.OnRegisterSuccess(this);
+            if (sender is RegisterViewModel vm)
+                Coordinator?.OnRegisterSuccess(this, vm.Email);
         }
 
         private void BackToLogin_Click(object? sender, RoutedEventArgs e)

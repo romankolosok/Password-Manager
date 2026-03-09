@@ -88,10 +88,12 @@ namespace PasswordManager.App
             services.AddTransient<RegisterViewModel>();
             services.AddTransient<VaultListViewModel>();
             services.AddTransient<EntryDetailViewModel>();
+            services.AddTransient<ConfirmOtpViewModel>();
             services.AddTransient<LoginView>();
             services.AddTransient<RegisterView>();
             services.AddTransient<VaultListView>();
             services.AddTransient<EntryDetailView>();
+            services.AddTransient<ConfirmOtpView>();
             services.AddSingleton<MainWindow>();
 
             ServiceProvider = services.BuildServiceProvider();

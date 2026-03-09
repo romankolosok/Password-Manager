@@ -11,6 +11,7 @@ namespace PasswordManager.App.Services
         private readonly IServiceProvider _serviceProvider;
         private Window? _loginWindow;
 
+
         public AuthCoordinator(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
@@ -58,11 +59,31 @@ namespace PasswordManager.App.Services
             registerView.Show();
         }
 
-        public void OnRegisterSuccess(Window registerWindow)
+        public void OnRegisterSuccess(Window registerWindow, string email)
         {
-            registerWindow.Close();
+            registerWindow.Hide();
+
+            var confirmOtpView = _serviceProvider.GetRequiredService<ConfirmOtpView>();
+            confirmOtpView.Closed += (_, _) =>
+            {
+                registerWindow.Close();
+                _loginWindow?.Show();
+                _loginWindow?.Activate();
+            };
+            var confirmOtpVm = _serviceProvider.GetRequiredService<ViewModels.ConfirmOtpViewModel>();
+            confirmOtpVm.Email = email;
+            confirmOtpView.DataContext = confirmOtpVm;
+            confirmOtpView.Coordinator = this;
+            confirmOtpView.Show();
+        }
+
+        public void OnConfirmOtpSuccess(Window confirmOtpWindow)
+        {
+            confirmOtpWindow.Close();
             _loginWindow?.Show();
             _loginWindow?.Activate();
         }
+
+
     }
 }

@@ -61,6 +61,10 @@ namespace PasswordManager.Tests.Services
             // registration succeeded
             Assert.True(result.Success, $"RegisterAsync failed: {result.Message}");
 
+            // confirm email so login can succeed
+            var confirmResult = await _fixture.ConfirmEmailAsync(email);
+            Assert.True(confirmResult.Success, $"VerifyEmailConfirmationAsync failed: {confirmResult.Message}");
+
             // user exists in Supabase Auth, can log in with the same credentials
             var loginResult = await _fixture.AuthService.LoginAsync(email, password);
             Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
@@ -117,6 +121,9 @@ namespace PasswordManager.Tests.Services
             var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
             Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
 
+            var confirmResult = await _fixture.ConfirmEmailAsync(email);
+            Assert.True(confirmResult.Success, $"VerifyEmailConfirmationAsync failed: {confirmResult.Message}");
+
             var loginResult = await _fixture.AuthService.LoginAsync(email, password);
             Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
 
@@ -139,6 +146,9 @@ namespace PasswordManager.Tests.Services
 
             var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
             Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
+
+            var confirmResult = await _fixture.ConfirmEmailAsync(email);
+            Assert.True(confirmResult.Success, $"VerifyEmailConfirmationAsync failed: {confirmResult.Message}");
 
             var loginResult = await _fixture.AuthService
                 .LoginAsync(email, string.Concat(password.Reverse()));
@@ -176,6 +186,9 @@ namespace PasswordManager.Tests.Services
             var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
             Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
 
+            var confirmResult = await _fixture.ConfirmEmailAsync(email);
+            Assert.True(confirmResult.Success, $"VerifyEmailConfirmationAsync failed: {confirmResult.Message}");
+
             // Log in once to get the userId, then lock
             var firstLogin = await _fixture.AuthService.LoginAsync(email, password);
             Assert.True(firstLogin.Success, $"First LoginAsync failed: {firstLogin.Message}");
@@ -210,6 +223,9 @@ namespace PasswordManager.Tests.Services
             var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
             Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
             Assert.True(_fixture.AuthService.IsLocked(), "New session should start in locked state");
+
+            var confirmResult = await _fixture.ConfirmEmailAsync(email);
+            Assert.True(confirmResult.Success, $"VerifyEmailConfirmationAsync failed: {confirmResult.Message}");
 
             var loginResult = await _fixture.AuthService.LoginAsync(email, password);
             Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");

@@ -3,7 +3,7 @@ using Avalonia.Input;
 using PasswordManager.App.Services;
 using PasswordManager.App.ViewModels;
 
-namespace PasswordManager.App;
+namespace PasswordManager.App.Views;
 
 public partial class ConfirmOtpView : Window
 {

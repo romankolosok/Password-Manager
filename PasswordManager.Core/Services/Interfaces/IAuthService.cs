@@ -14,6 +14,8 @@ namespace PasswordManager.Core.Services.Interfaces
 
         public Task<Result> RegisterAsync(string email, string masterPassword);
 
+        public Task<Result> VerifyEmailConfirmationAsync(string email, string confirmationCode);
+
         public Task<Result> LoginAsync(string email, string masterPassword);
 
         public Task LockAsync();

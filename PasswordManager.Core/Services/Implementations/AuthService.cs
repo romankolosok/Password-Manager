@@ -159,6 +159,24 @@ namespace PasswordManager.Core.Services.Implementations
             return Result.Ok();
         }
 
+        public async Task<Result> VerifyEmailConfirmationAsync(string email, string otpCode)
+        {
+            try
+            {
+                var session = await _supabase.Auth.VerifyOTP(email, otpCode, Constants.EmailOtpType.Signup);
+                if (session?.User == null)
+                {
+                    return Result.Fail("Invalid OTP code. Please try again.");
+                }
+                return Result.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Email confirmation failed for {Email}", email);
+                return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
+            }
+        }
+
         [ExcludeFromCodeCoverage]
         public async Task LockAsync()
         {

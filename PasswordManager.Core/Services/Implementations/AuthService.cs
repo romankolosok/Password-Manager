@@ -159,6 +159,39 @@ namespace PasswordManager.Core.Services.Implementations
             return Result.Ok();
         }
 
+        public async Task<Result> VerifyEmailConfirmationAsync(string email, string otpCode)
+        {
+            try
+            {
+                var session = await _supabase.Auth.VerifyOTP(email, otpCode, Constants.EmailOtpType.Signup);
+                if (session?.User == null)
+                {
+                    return Result.Fail(AuthMessages.OtpInvalidOrExpired);
+                }
+                return Result.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Email confirmation failed for {Email}", email);
+                return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
+            }
+        }
+
+        public async Task<Result> SendOTPConfirmationAsync(string email)
+        {
+            try
+            { 
+                await _supabase.Auth.SignInWithOtp(new SignInWithPasswordlessEmailOptions(email));
+                _logger.LogInformation("Resent OTP confirmation email to {Email}", email);
+                return Result.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Email confirmation resend failed for {Email}", email);
+                return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
+            }
+        }
+
         [ExcludeFromCodeCoverage]
         public async Task LockAsync()
         {
@@ -286,7 +319,7 @@ namespace PasswordManager.Core.Services.Implementations
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Login failed for {Email}", email);
-                return Result<Session>.Fail("Invalid email or password.");
+                return Result<Session>.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }
 

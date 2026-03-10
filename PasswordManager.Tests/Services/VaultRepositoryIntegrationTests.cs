@@ -23,22 +23,15 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task CreateUserProfileAsyncProfileExistsAfterRegistration()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId;
-            Assert.NotNull(userId);
-
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
             // handle_new_user_profile trigger should have created the profile row
-            var profile = await _fixture.VaultRepository.GetUserProfileAsync(userId.Value);
+            var profile = await _fixture.VaultRepository.GetUserProfileAsync(userId);
             Assert.NotNull(profile);
-            Assert.Equal(userId.Value, profile.Id);
+            Assert.Equal(userId, profile.Id);
 
             // salt and encrypted verification token were persisted
             Assert.False(string.IsNullOrWhiteSpace(profile.Salt), "Salt should not be empty");
@@ -49,25 +42,18 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task CreateUserProfileAsyncWithDuplicateIdThrowsPostgrestException()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId;
-            Assert.NotNull(userId);
-
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
             // profile already exists from the trigger — inserting again should violate UserProfiles_pkey
-            var existingProfile = await _fixture.VaultRepository.GetUserProfileAsync(userId.Value);
+            var existingProfile = await _fixture.VaultRepository.GetUserProfileAsync(userId);
             Assert.NotNull(existingProfile);
 
             var duplicateProfile = new UserProfileEntity
             {
-                Id = userId.Value,
+                Id = userId,
                 Salt = existingProfile.Salt,
                 EncryptedVerificationToken = existingProfile.EncryptedVerificationToken,
                 CreatedAt = DateTime.UtcNow
@@ -80,22 +66,15 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task GetUserProfileAsyncReturnsProfileWithCorrectSaltAndToken()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId;
-            Assert.NotNull(userId);
-
-            var profile = await _fixture.VaultRepository.GetUserProfileAsync(userId.Value);
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
+            var profile = await _fixture.VaultRepository.GetUserProfileAsync(userId);
 
             Assert.NotNull(profile);
-            Assert.Equal(userId.Value, profile.Id);
+            Assert.Equal(userId, profile.Id);
 
             Assert.False(string.IsNullOrWhiteSpace(profile.Salt), "Salt should not be empty");
             var saltBytes = Convert.FromBase64String(profile.Salt);
@@ -108,14 +87,10 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task GetUserProfileAsyncReturnsNullForNonExistentUser()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
 
             var profile = await _fixture.VaultRepository.GetUserProfileAsync(Guid.NewGuid());
 
@@ -125,23 +100,15 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task GetUserProfileAsyncReturnsNullForAnotherUsersProfile()
         {
-            var emailA = _fixture.GenerateUniqueEmail();
-            var emailB = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var regA = await _fixture.AuthService.RegisterAsync(emailA, password);
-            Assert.True(regA.Success, $"RegisterAsync(A) failed: {regA.Message}");
-
-            var loginA = await _fixture.AuthService.LoginAsync(emailA, password);
-            Assert.True(loginA.Success, $"LoginAsync(A) failed: {loginA.Message}");
-            var userIdA = _fixture.SessionService.CurrentUserId!.Value;
+            var userAResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userAResult.Success, userAResult.Message);
+            var (userIdA, emailA) = userAResult.Value;
             await _fixture.AuthService.LockAsync();
 
-            var regB = await _fixture.AuthService.RegisterAsync(emailB, password);
-            Assert.True(regB.Success, $"RegisterAsync(B) failed: {regB.Message}");
-
-            var loginB = await _fixture.AuthService.LoginAsync(emailB, password);
-            Assert.True(loginB.Success, $"LoginAsync(B) failed: {loginB.Message}");
+            var userBResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userBResult.Success, userBResult.Message);
 
             // user B's session is active, RLS should block reading user A's profile
             var profile = await _fixture.VaultRepository.GetUserProfileAsync(userIdA);
@@ -152,16 +119,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task GetAllEntriesAsyncReturnsEmptyListWhenNoEntriesExist()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId!.Value;
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
 
             var entries = await _fixture.VaultRepository.GetAllEntriesAsync(userId);
 
@@ -172,16 +134,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task GetAllEntriesAsyncReturnsAllEntriesOrderedByUpdatedAtDescending()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId!.Value;
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
 
             var entryA = new VaultEntryEntity
             {
@@ -215,16 +172,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task GetAllEntriesAsyncReturnsEmptyListForAnotherUsersEntries()
         {
-            var emailA = _fixture.GenerateUniqueEmail();
-            var emailB = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var regA = await _fixture.AuthService.RegisterAsync(emailA, password);
-            Assert.True(regA.Success, $"RegisterAsync(A) failed: {regA.Message}");
-
-            var loginA = await _fixture.AuthService.LoginAsync(emailA, password);
-            Assert.True(loginA.Success, $"LoginAsync(A) failed: {loginA.Message}");
-            var userIdA = _fixture.SessionService.CurrentUserId!.Value;
+            var userAResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userAResult.Success, userAResult.Message);
+            var (userIdA, emailA) = userAResult.Value;
 
             var entry = new VaultEntryEntity
             {
@@ -236,12 +188,9 @@ namespace PasswordManager.Tests.Services
             await _fixture.VaultRepository.UpsertEntryAsync(entry);
             await _fixture.AuthService.LockAsync();
 
-            var regB = await _fixture.AuthService.RegisterAsync(emailB, password);
-            Assert.True(regB.Success, $"RegisterAsync(B) failed: {regB.Message}");
-
-            var loginB = await _fixture.AuthService.LoginAsync(emailB, password);
-            Assert.True(loginB.Success, $"LoginAsync(B) failed: {loginB.Message}");
-            var userIdB = _fixture.SessionService.CurrentUserId!.Value;
+            var userBResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userBResult.Success, userBResult.Message);
+            var (userIdB, emailB) = userBResult.Value;
 
             // user B's session is active, RLS should hide user A's entries
             var entries = await _fixture.VaultRepository.GetAllEntriesAsync(userIdB);
@@ -253,16 +202,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task GetEntryAsyncReturnsNullWhenNoEntryExists()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId!.Value;
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
 
             var entry = await _fixture.VaultRepository.GetEntryAsync(userId, Guid.NewGuid());
 
@@ -272,16 +216,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task GetEntryAsyncReturnsEntryWhenEntryExists()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId!.Value;
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
 
             var entry = new VaultEntryEntity
             {
@@ -304,16 +243,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task GetEntryAsyncReturnsNullForAnotherUsersEntry()
         {
-            var emailA = _fixture.GenerateUniqueEmail();
-            var emailB = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var regA = await _fixture.AuthService.RegisterAsync(emailA, password);
-            Assert.True(regA.Success, $"RegisterAsync(A) failed: {regA.Message}");
-
-            var loginA = await _fixture.AuthService.LoginAsync(emailA, password);
-            Assert.True(loginA.Success, $"LoginAsync(A) failed: {loginA.Message}");
-            var userIdA = _fixture.SessionService.CurrentUserId!.Value;
+            var userAResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userAResult.Success, userAResult.Message);
+            var (userIdA, emailA) = userAResult.Value;
 
             var entry = new VaultEntryEntity
             {
@@ -325,12 +259,9 @@ namespace PasswordManager.Tests.Services
             await _fixture.VaultRepository.UpsertEntryAsync(entry);
             await _fixture.AuthService.LockAsync();
 
-            var regB = await _fixture.AuthService.RegisterAsync(emailB, password);
-            Assert.True(regB.Success, $"RegisterAsync(B) failed: {regB.Message}");
-
-            var loginB = await _fixture.AuthService.LoginAsync(emailB, password);
-            Assert.True(loginB.Success, $"LoginAsync(B) failed: {loginB.Message}");
-            var userIdB = _fixture.SessionService.CurrentUserId!.Value;
+            var userBResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userBResult.Success, userBResult.Message);
+            var (userIdB, emailB) = userBResult.Value;
 
             // user B's session is active, RLS should hide user A's entries
             var privateEntry = await _fixture.VaultRepository.GetEntryAsync(userIdB, entry.Id);
@@ -341,16 +272,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task UpsertEntryAsyncUpdatesExistingEntryDataAndUpdatedAt()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId!.Value;
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
 
             var entry = new VaultEntryEntity
             {
@@ -381,16 +307,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task UpsertEntryAsyncSetsUpdatedAtToUtcNow()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId!.Value;
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
 
             var entry = new VaultEntryEntity
             {
@@ -412,23 +333,15 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task UpsertEntryAsyncWithAnotherUsersIdFailsRlsCheck()
         {
-            var emailA = _fixture.GenerateUniqueEmail();
-            var emailB = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var regA = await _fixture.AuthService.RegisterAsync(emailA, password);
-            Assert.True(regA.Success, $"RegisterAsync(A) failed: {regA.Message}");
-
-            var loginA = await _fixture.AuthService.LoginAsync(emailA, password);
-            Assert.True(loginA.Success, $"LoginAsync(A) failed: {loginA.Message}");
-            var userIdA = _fixture.SessionService.CurrentUserId!.Value;
+            var userAResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userAResult.Success, userAResult.Message);
+            var (userIdA, emailA) = userAResult.Value;
             await _fixture.AuthService.LockAsync();
 
-            var regB = await _fixture.AuthService.RegisterAsync(emailB, password);
-            Assert.True(regB.Success, $"RegisterAsync(B) failed: {regB.Message}");
-
-            var loginB = await _fixture.AuthService.LoginAsync(emailB, password);
-            Assert.True(loginB.Success, $"LoginAsync(B) failed: {loginB.Message}");
+            var userBResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userBResult.Success, userBResult.Message);
 
             // user B's session is active, RLS WITH CHECK should reject inserting with user A's UserId
             var entry = new VaultEntryEntity
@@ -446,16 +359,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task DeleteEntryAsyncDeletesExistingEntry()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId!.Value;
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
 
             var entry = new VaultEntryEntity
             {
@@ -480,16 +388,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task DeleteEntryAsyncDoesNotDeleteNonExistingEntry()
         {
-            var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
-            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
-
-            var loginResult = await _fixture.AuthService.LoginAsync(email, password);
-            Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
-
-            var userId = _fixture.SessionService.CurrentUserId!.Value;
+            var userResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userResult.Success, userResult.Message);
+            var (userId, email) = userResult.Value;
 
             var entry = new VaultEntryEntity
             {
@@ -517,16 +420,11 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public async Task DeleteEntryAsyncDoesNotDeleteAnotherUsersEntries()
         {
-            var emailA = _fixture.GenerateUniqueEmail();
-            var emailB = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
 
-            var regA = await _fixture.AuthService.RegisterAsync(emailA, password);
-            Assert.True(regA.Success, $"RegisterAsync(A) failed: {regA.Message}");
-
-            var loginA = await _fixture.AuthService.LoginAsync(emailA, password);
-            Assert.True(loginA.Success, $"LoginAsync(A) failed: {loginA.Message}");
-            var userIdA = _fixture.SessionService.CurrentUserId!.Value;
+            var userAResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userAResult.Success, userAResult.Message);
+            var (userIdA, emailA) = userAResult.Value;
 
             var entryA = new VaultEntryEntity
             {
@@ -538,12 +436,9 @@ namespace PasswordManager.Tests.Services
             await _fixture.VaultRepository.UpsertEntryAsync(entryA);
             await _fixture.AuthService.LockAsync();
 
-            var regB = await _fixture.AuthService.RegisterAsync(emailB, password);
-            Assert.True(regB.Success, $"RegisterAsync(B) failed: {regB.Message}");
-
-            var loginB = await _fixture.AuthService.LoginAsync(emailB, password);
-            Assert.True(loginB.Success, $"LoginAsync(B) failed: {loginB.Message}");
-            var userIdB = _fixture.SessionService.CurrentUserId!.Value;
+            var userBResult = await _fixture.RegisterConfirmAndLoginAsync(password);
+            Assert.True(userBResult.Success, userBResult.Message);
+            var (userIdB, emailB) = userBResult.Value;
 
             var entryB = new VaultEntryEntity
             {

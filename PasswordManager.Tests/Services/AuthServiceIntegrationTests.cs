@@ -1,5 +1,7 @@
+using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Models;
 using PasswordManager.Tests.Fixtures;
+using PasswordManager.Tests.Helpers;
 
 namespace PasswordManager.Tests.Services
 {
@@ -61,6 +63,10 @@ namespace PasswordManager.Tests.Services
             // registration succeeded
             Assert.True(result.Success, $"RegisterAsync failed: {result.Message}");
 
+            // confirm email so login can succeed
+            var confirmResult = await _fixture.ConfirmEmailAsync(email);
+            Assert.True(confirmResult.Success, $"VerifyEmailConfirmationAsync failed: {confirmResult.Message}");
+
             // user exists in Supabase Auth, can log in with the same credentials
             var loginResult = await _fixture.AuthService.LoginAsync(email, password);
             Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
@@ -117,6 +123,9 @@ namespace PasswordManager.Tests.Services
             var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
             Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
 
+            var confirmResult = await _fixture.ConfirmEmailAsync(email);
+            Assert.True(confirmResult.Success, $"VerifyEmailConfirmationAsync failed: {confirmResult.Message}");
+
             var loginResult = await _fixture.AuthService.LoginAsync(email, password);
             Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
 
@@ -139,6 +148,9 @@ namespace PasswordManager.Tests.Services
 
             var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
             Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
+
+            var confirmResult = await _fixture.ConfirmEmailAsync(email);
+            Assert.True(confirmResult.Success, $"VerifyEmailConfirmationAsync failed: {confirmResult.Message}");
 
             var loginResult = await _fixture.AuthService
                 .LoginAsync(email, string.Concat(password.Reverse()));
@@ -176,6 +188,9 @@ namespace PasswordManager.Tests.Services
             var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
             Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
 
+            var confirmResult = await _fixture.ConfirmEmailAsync(email);
+            Assert.True(confirmResult.Success, $"VerifyEmailConfirmationAsync failed: {confirmResult.Message}");
+
             // Log in once to get the userId, then lock
             var firstLogin = await _fixture.AuthService.LoginAsync(email, password);
             Assert.True(firstLogin.Success, $"First LoginAsync failed: {firstLogin.Message}");
@@ -211,6 +226,9 @@ namespace PasswordManager.Tests.Services
             Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
             Assert.True(_fixture.AuthService.IsLocked(), "New session should start in locked state");
 
+            var confirmResult = await _fixture.ConfirmEmailAsync(email);
+            Assert.True(confirmResult.Success, $"VerifyEmailConfirmationAsync failed: {confirmResult.Message}");
+
             var loginResult = await _fixture.AuthService.LoginAsync(email, password);
             Assert.True(loginResult.Success, $"LoginAsync failed: {loginResult.Message}");
             Assert.False(_fixture.AuthService.IsLocked(), "Session should be unlocked after successful login");
@@ -223,6 +241,80 @@ namespace PasswordManager.Tests.Services
             Assert.Null(_fixture.SessionService.CurrentUserEmail);
         }
 
+        [Fact]
+        public async Task RegisterAsyncSendsOtpEmailWith8DigitToken()
+        {
+            var email = _fixture.GenerateUniqueEmail();
+            var password = "IntegrationTest1!";
+
+            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
+            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
+            
+            Thread.Sleep(1000);
+
+            var otpEmailResult = await InbucketClient.GetLatestOtpAsync(email);
+            
+            Assert.NotNull(otpEmailResult);
+            Assert.Equal(8, otpEmailResult.Length);
+            Assert.Matches("[0-9]{8}", otpEmailResult);
+        }
+        
+        [Fact]
+        public async Task VerifyEmailConfirmationAsyncReturnsOkWhenTokenIsValid()
+        {
+            var email = _fixture.GenerateUniqueEmail();
+            var password = "IntegrationTest1!";
+
+            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
+            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
+            
+            Thread.Sleep(1000);
+
+            var otpEmailResult = await InbucketClient.GetLatestOtpAsync(email);
+            Assert.NotNull(otpEmailResult);
+
+            var emailConfirmationResult =
+                await _fixture.AuthService.VerifyEmailConfirmationAsync(email, otpEmailResult);
+            Assert.True(emailConfirmationResult.Success, $"VerifyEmailConfirmationAsync failed: {emailConfirmationResult.Message}");
+        }
+        
+        [Fact]
+        public async Task VerifyEmailConfirmationAsyncReturnsFailureWhenTokenIsInvalid()
+        {
+            var email = _fixture.GenerateUniqueEmail();
+            var password = "IntegrationTest1!";
+
+            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
+            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
+            
+            var randomToken = Random.Shared.Next(10000000, 99999999).ToString();
+
+            var emailConfirmationResult =
+                await _fixture.AuthService.VerifyEmailConfirmationAsync(email, randomToken);
+            Assert.False(emailConfirmationResult.Success, $"VerifyEmailConfirmationAsync must fail with invalid token.");
+            Assert.Equal(AuthMessages.OtpInvalidOrExpired, emailConfirmationResult.Message);
+        }
+        
+        [Fact]
+        public async Task VerifyEmailConfirmationAsyncReturnsFailureWhenTokenIsExpired()
+        {
+            var email = _fixture.GenerateUniqueEmail();
+            var password = "IntegrationTest1!";
+
+            var registrationResult = await _fixture.AuthService.RegisterAsync(email, password);
+            Assert.True(registrationResult.Success, $"RegisterAsync failed: {registrationResult.Message}");
+
+            var otp = await InbucketClient.GetLatestOtpAsync(email);
+            Assert.NotNull(otp);
+            
+            Thread.Sleep(8000);
+
+            var emailConfirmationResult =
+                await _fixture.AuthService.VerifyEmailConfirmationAsync(email, otp);
+            Assert.False(emailConfirmationResult.Success,
+                "Verification should fail with expired OTP. Ensure supabase/config.toml has otp_expiry = 5 and run: supabase stop && supabase start");
+            Assert.Equal(AuthMessages.OtpInvalidOrExpired, emailConfirmationResult.Message);
+        }
 
     }
 }

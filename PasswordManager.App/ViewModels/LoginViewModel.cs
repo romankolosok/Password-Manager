@@ -1,7 +1,6 @@
-using System.Linq;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Core.Validators;
@@ -67,6 +66,8 @@ namespace PasswordManager.App.ViewModels
 
             if (result.Success)
                 LoginSuccessful?.Invoke(this, EventArgs.Empty);
+            else if (result.Message == AuthMessages.EmailNotConfirmed)
+                EmailNotConfirmed?.Invoke(this, EventArgs.Empty);
             else
                 ErrorMessage = result.Message ?? "Login failed.";
 
@@ -91,6 +92,8 @@ namespace PasswordManager.App.ViewModels
         }
 
         public event EventHandler? LoginSuccessful;
+        
+        public event EventHandler? EmailNotConfirmed;
 
         public LoginViewModel(IAuthService authService)
         {

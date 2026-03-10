@@ -10,6 +10,10 @@ namespace PasswordManager.App.Services
 
         void RequestRegister(Window loginWindow);
 
-        void OnRegisterSuccess(Window registerWindow);
+        void OnRegisterSuccess(Window registerWindow, string email);
+
+        void OnConfirmOtpSuccess(Window confirmOtpWindow);
+        
+        void RequestConfirmOtpFromLogin(Window loginWindow, string email);
     }
 }

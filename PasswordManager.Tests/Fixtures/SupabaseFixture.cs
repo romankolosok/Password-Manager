@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PasswordManager.Core.Exceptions;
+using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Implementations;
+using PasswordManager.Tests.Helpers;
 using Supabase.Gotrue;
 
 namespace PasswordManager.Tests.Fixtures
@@ -106,6 +108,9 @@ namespace PasswordManager.Tests.Fixtures
         public async Task CleanupTestUsersAsync()
         {
             var config = BuildTestConfiguration();
+
+
+
             var serviceRoleKey = GetSupabaseSetting(config, "ServiceRoleKey");
             if (string.IsNullOrEmpty(serviceRoleKey))
                 return;
@@ -139,6 +144,45 @@ namespace PasswordManager.Tests.Fixtures
             }
 
             _createdEmails.Clear();
+        }
+
+        public async Task<Result> ConfirmEmailAsync(string email)
+        {
+            var otp = await InbucketClient.GetLatestOtpAsync(email);
+
+            if (otp == null)
+            {
+                return Result.Fail($"Failed to retrieve OTP for {email}.");
+            }
+
+            var otpVerifyResult = AuthService.VerifyEmailConfirmationAsync(email, otp);
+
+            return await otpVerifyResult;
+        }
+
+        public async Task<Result<(Guid UserId, string Email)>> RegisterConfirmAndLoginAsync(string password)
+        {
+            var email = GenerateUniqueEmail();
+
+            var result = await AuthService.RegisterAsync(email, password);
+            if (!result.Success)
+                return Result<(Guid UserId, string Email)>.Fail($"RegisterAsync failed: {result.Message}");
+
+            var otpResult = await ConfirmEmailAsync(email);
+            if (!otpResult.Success)
+                return Result<(Guid UserId, string Email)>.Fail($"VerifyEmailConfirmationAsync failed: {otpResult.Message}");
+
+            var loginResult = await AuthService.LoginAsync(email, password);
+            if (!loginResult.Success)
+                return Result<(Guid UserId, string Email)>.Fail($"LoginAsync failed: {loginResult.Message}");
+
+            var userId = SessionService.CurrentUserId;
+            if (userId is null)
+            {
+                return Result<(Guid UserId, string Email)>.Fail("LoginAsync succeeded but CurrentUserId is null.");
+            }
+
+            return Result<(Guid UserId, string Email)>.Ok((userId.Value, email));
         }
 
         public async Task DisposeAsync()

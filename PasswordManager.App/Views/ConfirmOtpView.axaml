@@ -13,7 +13,7 @@
             <TextBlock Text="Enter Verification Code"
                        FontSize="20" FontWeight="SemiBold" Foreground="#111827"
                        HorizontalAlignment="Center"/>
-            <TextBlock Text="We sent a 6-digit code to your email"
+            <TextBlock Text="We sent a 8-digit code to your email"
                        FontSize="13" Foreground="#6B7280"
                        HorizontalAlignment="Center" Margin="0,6,0,0"/>
         </StackPanel>

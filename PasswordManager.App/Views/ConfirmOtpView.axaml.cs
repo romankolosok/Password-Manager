@@ -1,6 +1,7 @@
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using PasswordManager.App.Services;
 using PasswordManager.App.ViewModels;
 
@@ -62,9 +63,16 @@ public partial class ConfirmOtpView : Window
         }
     }
 
-    private void OnDigitKeyDown(object? sender, KeyEventArgs e)
+    private async void OnDigitKeyDown(object? sender, KeyEventArgs e)
     {
         if (sender is not TextBox box) return;
+
+        if (IsPasteGesture(e))
+        {
+            e.Handled = true;
+            await PasteFromClipboardAsync();
+            return;
+        }
 
         if (e.Key is Key.Back or Key.Delete)
         {
@@ -117,6 +125,67 @@ public partial class ConfirmOtpView : Window
                 next.CaretIndex = next.Text?.Length ?? 0;
             }
             e.Handled = true;
+        }
+    }
+
+    private static bool IsPasteGesture(KeyEventArgs e)
+    {
+        var mods = e.KeyModifiers;
+        bool ctrlOrCmd = (mods & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
+
+        // Ctrl+V / Cmd+V
+        if (ctrlOrCmd && e.Key == Key.V)
+            return true;
+
+        // Shift+Insert (common on Windows/Linux)
+        if ((mods & KeyModifiers.Shift) != 0 && e.Key == Key.Insert)
+            return true;
+
+        return false;
+    }
+
+    private async Task PasteFromClipboardAsync()
+    {
+        if (_digitBoxes.Length == 0) return;
+
+        IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard == null) return;
+
+        string? text;
+        try
+        {
+            text = await clipboard.GetTextAsync();
+        }
+        catch
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        var digits = text.Where(char.IsDigit).Take(_digitBoxes.Length).ToArray();
+        if (digits.Length == 0)
+            return;
+
+        for (int i = 0; i < _digitBoxes.Length; i++)
+        {
+            _digitBoxes[i].Text = i < digits.Length ? digits[i].ToString() : string.Empty;
+            _digitBoxes[i].CaretIndex = _digitBoxes[i].Text?.Length ?? 0;
+        }
+
+        if (_digitBoxes.All(b => !string.IsNullOrWhiteSpace(b.Text)))
+        {
+            ConfirmButton?.Focus();
+        }
+        else
+        {
+            int nextIndex = digits.Length;
+            if (nextIndex >= 0 && nextIndex < _digitBoxes.Length)
+            {
+                _digitBoxes[nextIndex].Focus();
+                _digitBoxes[nextIndex].CaretIndex = _digitBoxes[nextIndex].Text?.Length ?? 0;
+            }
         }
     }
 

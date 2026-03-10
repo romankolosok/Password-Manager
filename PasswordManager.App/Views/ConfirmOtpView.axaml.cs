@@ -1,3 +1,4 @@
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using PasswordManager.App.Services;
@@ -27,7 +28,7 @@ public partial class ConfirmOtpView : Window
         foreach (var box in _digitBoxes)
         {
             box.AddHandler(TextInputEvent, OnDigitTextInput, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-            box.KeyDown += OnDigitKeyDown;
+            box.AddHandler(InputElement.KeyDownEvent, OnDigitKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         }
 
         _digitBoxes[0].Focus();
@@ -42,42 +43,79 @@ public partial class ConfirmOtpView : Window
         if (string.IsNullOrEmpty(e.Text) || !char.IsDigit(e.Text[0])) return;
 
         box.Text = e.Text[0].ToString();
+        box.CaretIndex = box.Text.Length;
 
-        // Advance focus to next box
+        // Advance focus to next box, or move focus away when all digits are filled
         int index = Array.IndexOf(_digitBoxes, box);
+        if (index < 0) return;
+
         if (index < _digitBoxes.Length - 1)
-            _digitBoxes[index + 1].Focus();
+        {
+            var nextBox = _digitBoxes[index + 1];
+            nextBox.Focus();
+            nextBox.CaretIndex = nextBox.Text?.Length ?? 0;
+        }
+        else if (_digitBoxes.All(b => !string.IsNullOrWhiteSpace(b.Text)))
+        {
+            // All digits entered – move focus away from the last box
+            ConfirmButton?.Focus();
+        }
     }
 
     private void OnDigitKeyDown(object? sender, KeyEventArgs e)
     {
         if (sender is not TextBox box) return;
 
-        if (e.Key == Key.Back)
+        if (e.Key is Key.Back or Key.Delete)
         {
             int index = Array.IndexOf(_digitBoxes, box);
+            if (index < 0) return;
+
             if (!string.IsNullOrEmpty(box.Text))
             {
+                // Clear current box and move focus to the previous box
                 box.Text = string.Empty;
+                if (index > 0)
+                {
+                    var previous = _digitBoxes[index - 1];
+                    previous.Focus();
+                    previous.CaretIndex = previous.Text?.Length ?? 0;
+                }
             }
             else if (index > 0)
             {
-                // Move back and clear previous box
-                _digitBoxes[index - 1].Text = string.Empty;
-                _digitBoxes[index - 1].Focus();
+                // Current box is empty: move back and clear previous box
+                var previous = _digitBoxes[index - 1];
+                previous.Focus();
+                if (!string.IsNullOrEmpty(previous.Text))
+                {
+                    previous.Text = string.Empty;
+                }
+                previous.CaretIndex = previous.Text?.Length ?? 0;
             }
+
             e.Handled = true;
         }
         else if (e.Key == Key.Left)
         {
             int index = Array.IndexOf(_digitBoxes, box);
-            if (index > 0) _digitBoxes[index - 1].Focus();
+            if (index > 0)
+            {
+                var previous = _digitBoxes[index - 1];
+                previous.Focus();
+                previous.CaretIndex = previous.Text?.Length ?? 0;
+            }
             e.Handled = true;
         }
         else if (e.Key == Key.Right)
         {
             int index = Array.IndexOf(_digitBoxes, box);
-            if (index < _digitBoxes.Length - 1) _digitBoxes[index + 1].Focus();
+            if (index < _digitBoxes.Length - 1)
+            {
+                var next = _digitBoxes[index + 1];
+                next.Focus();
+                next.CaretIndex = next.Text?.Length ?? 0;
+            }
             e.Handled = true;
         }
     }

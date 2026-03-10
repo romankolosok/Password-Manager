@@ -77,7 +77,8 @@
                    HorizontalAlignment="Center" Margin="0,4,0,12"/>
 
         <!-- Confirm button -->
-        <Button Grid.Row="4"
+        <Button x:Name="ConfirmButton"
+                Grid.Row="4"
                 Height="44" CornerRadius="10"
                 Command="{Binding ConfirmOtpCommand}"
                 Classes="primary" HorizontalAlignment="Stretch"

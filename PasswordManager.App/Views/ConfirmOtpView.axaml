@@ -116,7 +116,7 @@
         <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
             <TextBlock Text="Didn't receive a code?" FontSize="13" Foreground="#6B7280"
                        VerticalAlignment="Center"/>
-            <Button Content="Resend" Classes="hyperlink"
+            <Button Content="{Binding ResendButtonText}" Classes="hyperlink"
                     Command="{Binding ResendOtpCommand}"
                     FontSize="13" FontWeight="SemiBold" Foreground="#4F46E5"
                     Padding="4,0" Margin="2,0,0,0" VerticalAlignment="Center"/>

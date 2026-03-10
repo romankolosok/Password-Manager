@@ -177,6 +177,21 @@ namespace PasswordManager.Core.Services.Implementations
             }
         }
 
+        public async Task<Result> SendOTPConfirmationAsync(string email)
+        {
+            try
+            { 
+                await _supabase.Auth.SignInWithOtp(new SignInWithPasswordlessEmailOptions(email));
+                _logger.LogInformation("Resent OTP confirmation email to {Email}", email);
+                return Result.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Email confirmation resend failed for {Email}", email);
+                return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
+            }
+        }
+
         [ExcludeFromCodeCoverage]
         public async Task LockAsync()
         {

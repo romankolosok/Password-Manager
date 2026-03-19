@@ -15,9 +15,6 @@ namespace PasswordManager.Core.Entities
 
         [Column("Salt")]
         public string Salt { get; set; } = string.Empty;
-
-        [Column("EncryptedVerificationToken")]
-        public string EncryptedVerificationToken { get; set; } = string.Empty;
         
         [Column("EncryptedDEK")]
         public string EncryptedDEK { get; set; } = string.Empty;

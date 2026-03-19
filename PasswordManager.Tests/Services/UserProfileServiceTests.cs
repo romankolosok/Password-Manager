@@ -1,4 +1,4 @@
-﻿using Moq;
+using Moq;
 using PasswordManager.Core.Entities;
 using PasswordManager.Core.Services.Implementations;
 using PasswordManager.Core.Services.Interfaces;
@@ -19,7 +19,7 @@ namespace PasswordManager.Tests.Services
             {
                 Id = id ?? TestData.UserId(),
                 Salt = salt ?? TestData.AccessToken(),
-                EncryptedVerificationToken = evt ?? TestData.AccessToken(),
+                EncryptedDEK = evt ?? TestData.AccessToken(),
                 CreatedAt = DateTime.UtcNow,
             };
         }

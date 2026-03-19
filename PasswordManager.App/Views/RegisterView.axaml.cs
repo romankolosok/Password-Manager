@@ -30,7 +30,7 @@ namespace PasswordManager.App.Views
         private void OnRegisterSuccessful(object? sender, System.EventArgs e)
         {
             if (sender is RegisterViewModel vm)
-                Coordinator?.OnRegisterSuccess(this, vm.Email);
+                Coordinator?.OnRegisterSuccess(this, vm.Email, vm.MasterPassword);
         }
 
         private void BackToLogin_Click(object? sender, RoutedEventArgs e)

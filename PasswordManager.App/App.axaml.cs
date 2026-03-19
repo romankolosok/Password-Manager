@@ -92,6 +92,7 @@ namespace PasswordManager.App
             services.AddTransient<EntryDetailViewModel>();
             services.AddTransient<ConfirmOtpViewModel>();
             services.AddTransient<SetNewPasswordViewModel>();
+            services.AddTransient<RecoveryKeyViewModel>();
             services.AddTransient<LoginView>();
             services.AddTransient<RegisterView>();
             services.AddTransient<ForgotPasswordView>();
@@ -99,6 +100,7 @@ namespace PasswordManager.App
             services.AddTransient<EntryDetailView>();
             services.AddTransient<ConfirmOtpView>();
             services.AddTransient<SetNewPasswordView>();
+            services.AddTransient<RecoveryKeyView>();
             services.AddSingleton<MainWindow>();
 
             ServiceProvider = services.BuildServiceProvider();

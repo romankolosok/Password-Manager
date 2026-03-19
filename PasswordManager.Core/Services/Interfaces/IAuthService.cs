@@ -17,6 +17,10 @@ namespace PasswordManager.Core.Services.Interfaces
         public Task<Result> VerifyEmailConfirmationAsync(string email, string confirmationCode);
 
         public Task<Result> SendOTPConfirmationAsync(string email);
+        
+        public Task<Result> VerifyPasswordResetAsync(string email, string otpCode);
+
+        public Task<Result> SendResetPasswordEmailAsync(string email);
 
         public Task<Result> LoginAsync(string email, string masterPassword);
 

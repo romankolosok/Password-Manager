@@ -177,12 +177,46 @@ namespace PasswordManager.Core.Services.Implementations
             }
         }
 
+        public async Task<Result> VerifyPasswordResetAsync(string email, string otpCode)
+        {
+            try
+            {
+                var session = await _supabase.Auth.VerifyOTP(email, otpCode, Constants.EmailOtpType.Recovery);
+                if (session?.User == null)
+                {
+                    return Result.Fail(AuthMessages.OtpInvalidOrExpired);
+                }
+
+                return Result.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Password reset failed for {Email}", email);
+                return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
+            }
+        }
+
+        public async Task<Result> SendResetPasswordEmailAsync(string email)
+        {
+            try
+            {
+                await _supabase.Auth.ResetPasswordForEmail(email);
+                _logger.LogInformation("Password reset email sent to {Email}", email);
+                return Result.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Password reset email failed for {Email}", email);
+                return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
+            }
+        }
+
         public async Task<Result> SendOTPConfirmationAsync(string email)
         {
             try
             { 
                 await _supabase.Auth.SignInWithOtp(new SignInWithPasswordlessEmailOptions(email));
-                _logger.LogInformation("Resent OTP confirmation email to {Email}", email);
+                _logger.LogInformation("Sent OTP confirmation email to {Email}", email);
                 return Result.Ok();
             }
             catch (Exception ex)

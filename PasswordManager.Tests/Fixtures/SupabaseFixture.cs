@@ -81,6 +81,7 @@ namespace PasswordManager.Tests.Fixtures
                 SupabaseClient,
                 CryptoService,
                 UserProfileService,
+                VaultRepository,
                 SessionService,
                 ExceptionMapper,
                 Logger);

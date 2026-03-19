@@ -53,7 +53,7 @@ namespace PasswordManager.Tests.Services
         }
 
         [Fact]
-        public async Task RegisterAsyncCreatesAuthUserAndProfileWithSaltAndVerificationToken()
+        public async Task RegisterAsyncCreatesAuthUserAndProfileWithSaltAndEncryptedDEK()
         {
             var email = _fixture.GenerateUniqueEmail();
             var password = "IntegrationTest1!";
@@ -88,17 +88,22 @@ namespace PasswordManager.Tests.Services
             var saltBytes = Convert.FromBase64String(profile.Salt);
             Assert.Equal(16, saltBytes.Length);
 
-            // encrypted verification token is stored and is a valid EncryptedBlob
-            Assert.False(string.IsNullOrWhiteSpace(profile.EncryptedVerificationToken),
-                "EncryptedVerificationToken should not be empty");
+            // EncryptedDEK is stored and is a valid EncryptedBlob
+            Assert.False(string.IsNullOrWhiteSpace(profile.EncryptedDEK),
+                "EncryptedDEK should not be empty");
 
-            var blobResult = EncryptedBlob.FromBase64String(profile.EncryptedVerificationToken);
-            Assert.True(blobResult.Success, "Stored token is not a valid EncryptedBlob");
+            var dekBlobResult = EncryptedBlob.FromBase64String(profile.EncryptedDEK);
+            Assert.True(dekBlobResult.Success, "Stored EncryptedDEK is not a valid EncryptedBlob");
 
-            // token round-trips: derive key then decrypt must succeed
-            var derivedKey = _fixture.SessionService.GetDerivedKey();
-            var decryptResult = _fixture.CryptoService.Decrypt(blobResult.Value, derivedKey);
-            Assert.True(decryptResult.Success, "Verification token decryption failed — key mismatch");
+            // EncryptedDEK round-trips: derive KEK then decrypt must succeed
+            var kek = _fixture.CryptoService.DeriveKey(password, saltBytes);
+            var derivedDek = _fixture.SessionService.GetDerivedKey(); // session holds DEK bytes
+
+            var decryptResult = _fixture.CryptoService.Decrypt(dekBlobResult.Value, kek);
+            Assert.True(decryptResult.Success, "EncryptedDEK decryption failed — key mismatch");
+
+            var decryptedDekBytes = Convert.FromBase64String(decryptResult.Value);
+            Assert.Equal(derivedDek, decryptedDekBytes);
         }
 
         [Fact]

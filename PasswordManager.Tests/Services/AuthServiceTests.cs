@@ -30,7 +30,7 @@ namespace PasswordManager.Tests.Services
         }
 
         [Fact]
-        public async Task VerifyMasterPasswordAsyncReturnsFailureWhenEncryptedTokenIsInvalidBase64()
+        public async Task VerifyMasterPasswordAsyncReturnsFailureWhenEncryptedDEKIsInvalidBase64()
         {
             _fixture.Reset();
             var service = _fixture.CreateService();
@@ -41,7 +41,7 @@ namespace PasswordManager.Tests.Services
             {
                 Id = userId,
                 Salt = Convert.ToBase64String(new byte[16]),
-                EncryptedVerificationToken = "!!!not-valid-base64!!!",
+                EncryptedDEK = "!!!not-valid-base64!!!",
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -75,7 +75,7 @@ namespace PasswordManager.Tests.Services
             {
                 Id = userId,
                 Salt = Convert.ToBase64String(salt),
-                EncryptedVerificationToken = blob.ToBase64String(),
+                EncryptedDEK = blob.ToBase64String(),
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -117,7 +117,7 @@ namespace PasswordManager.Tests.Services
             {
                 Id = userId,
                 Salt = Convert.ToBase64String(salt),
-                EncryptedVerificationToken = blob.ToBase64String(),
+                EncryptedDEK = blob.ToBase64String(),
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -149,7 +149,7 @@ namespace PasswordManager.Tests.Services
         }
 
         [Fact]
-        public async Task ChangeMasterPasswordAsyncAlwaysReturnsNotImplemented()
+        public async Task ChangeMasterPasswordAsyncReturnsNotLoggedInWhenNoSession()
         {
             _fixture.Reset();
             var service = _fixture.CreateService();
@@ -157,7 +157,7 @@ namespace PasswordManager.Tests.Services
             var result = await service.ChangeMasterPasswordAsync("current", "new-password");
 
             Assert.False(result.Success);
-            Assert.Equal("Not implemented.", result.Message);
+            Assert.Equal("Not logged in.", result.Message);
         }
 
         [Fact]

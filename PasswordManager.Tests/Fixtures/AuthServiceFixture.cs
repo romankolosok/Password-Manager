@@ -11,6 +11,7 @@ namespace PasswordManager.Tests.Fixtures
         public Supabase.Client SupabaseClient { get; }
         public Mock<ICryptoService> CryptoService { get; } = new();
         public Mock<IUserProfileService> UserProfileService { get; } = new();
+        public Mock<IVaultRepository> VaultRepository { get; } = new();
         public Mock<ISessionService> SessionService { get; } = new();
         public Mock<SupabaseExceptionMapper> ExceptionMapper { get; } = new();
         public Mock<ILogger<AuthService>> Logger { get; } = new();
@@ -30,6 +31,7 @@ namespace PasswordManager.Tests.Fixtures
             new(SupabaseClient,
                 CryptoService.Object,
                 UserProfileService.Object,
+                VaultRepository.Object,
                 SessionService.Object,
                 ExceptionMapper.Object,
                 Logger.Object);
@@ -38,6 +40,7 @@ namespace PasswordManager.Tests.Fixtures
         {
             CryptoService.Reset();
             UserProfileService.Reset();
+            VaultRepository.Reset();
             SessionService.Reset();
             ExceptionMapper.Reset();
             Logger.Reset();

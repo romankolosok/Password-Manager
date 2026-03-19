@@ -33,10 +33,10 @@ namespace PasswordManager.Tests.Services
             Assert.NotNull(profile);
             Assert.Equal(userId, profile.Id);
 
-            // salt and encrypted verification token were persisted
+            // salt and encrypted DEK were persisted
             Assert.False(string.IsNullOrWhiteSpace(profile.Salt), "Salt should not be empty");
-            Assert.False(string.IsNullOrWhiteSpace(profile.EncryptedVerificationToken),
-                "EncryptedVerificationToken should not be empty");
+            Assert.False(string.IsNullOrWhiteSpace(profile.EncryptedDEK),
+                "EncryptedDEK should not be empty");
         }
 
         [Fact]
@@ -55,7 +55,7 @@ namespace PasswordManager.Tests.Services
             {
                 Id = userId,
                 Salt = existingProfile.Salt,
-                EncryptedVerificationToken = existingProfile.EncryptedVerificationToken,
+                EncryptedDEK = existingProfile.EncryptedDEK,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -80,8 +80,8 @@ namespace PasswordManager.Tests.Services
             var saltBytes = Convert.FromBase64String(profile.Salt);
             Assert.Equal(16, saltBytes.Length);
 
-            Assert.False(string.IsNullOrWhiteSpace(profile.EncryptedVerificationToken),
-                "EncryptedVerificationToken should not be empty");
+            Assert.False(string.IsNullOrWhiteSpace(profile.EncryptedDEK),
+                "EncryptedDEK should not be empty");
         }
 
         [Fact]

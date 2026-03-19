@@ -20,6 +20,12 @@ namespace PasswordManager.App.ViewModels
         [NotifyCanExecuteChangedFor(nameof(ResetPasswordCommand))]
         [NotifyPropertyChangedFor(nameof(DisplayError))]
         [NotifyPropertyChangedFor(nameof(DisplayErrorVisible))]
+        private string _recoveryKey = string.Empty;
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(ResetPasswordCommand))]
+        [NotifyPropertyChangedFor(nameof(DisplayError))]
+        [NotifyPropertyChangedFor(nameof(DisplayErrorVisible))]
         private string _newMasterPassword = string.Empty;
 
         [ObservableProperty]
@@ -44,7 +50,8 @@ namespace PasswordManager.App.ViewModels
         private bool _isConfirmPasswordVisible;
 
         private bool AllFieldsFilled =>
-            !string.IsNullOrWhiteSpace(NewMasterPassword)
+            !string.IsNullOrWhiteSpace(RecoveryKey)
+            && !string.IsNullOrWhiteSpace(NewMasterPassword)
             && !string.IsNullOrWhiteSpace(ConfirmMasterPassword);
 
         public string DisplayError => AllFieldsFilled ? (GetValidationError() ?? ResetError) : ResetError;
@@ -52,6 +59,9 @@ namespace PasswordManager.App.ViewModels
 
         private string? GetValidationError()
         {
+            if (string.IsNullOrWhiteSpace(RecoveryKey))
+                return "Recovery key is required.";
+
             var passwordResult = _passwordValidator.Validate(new PasswordInput { Password = NewMasterPassword.Trim() });
             if (!passwordResult.IsValid)
                 return string.Join(" ", passwordResult.Errors.Select(e => e.ErrorMessage));
@@ -68,7 +78,7 @@ namespace PasswordManager.App.ViewModels
             IsLoading = true;
             ResetError = string.Empty;
 
-            Result result = await _authService.ChangeMasterPasswordAsync(NewMasterPassword.Trim());
+            Result result = await _authService.RecoverVaultAsync(RecoveryKey.Trim(), NewMasterPassword.Trim());
             if (result.Success)
                 ResetPasswordSuccessful?.Invoke(this, EventArgs.Empty);
             else

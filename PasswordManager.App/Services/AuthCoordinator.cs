@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Microsoft.Extensions.DependencyInjection;
+using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.App.Views;
 
 namespace PasswordManager.App.Services
@@ -10,6 +11,11 @@ namespace PasswordManager.App.Services
     {
         private readonly IServiceProvider _serviceProvider;
         private Window? _loginWindow;
+        private bool _promptRecoveryKeyAfterNextLogin;
+        private Window? _pendingSignupRegisterWindow;
+        private string? _pendingSignupEmail;
+        private string? _pendingSignupMasterPassword;
+        private bool _signupFlowCompleted;
 
 
         public AuthCoordinator(IServiceProvider serviceProvider)
@@ -29,8 +35,26 @@ namespace PasswordManager.App.Services
             view.Show();
         }
 
-        public void OnLoginSuccess(Window loginWindow)
+        public async void OnLoginSuccess(Window loginWindow)
         {
+            if (_promptRecoveryKeyAfterNextLogin)
+            {
+                _promptRecoveryKeyAfterNextLogin = false;
+
+                var authService = _serviceProvider.GetRequiredService<IAuthService>();
+                var recoveryKeyResult = await authService.SetupRecoveryKeyAsync();
+                if (recoveryKeyResult.Success && !string.IsNullOrWhiteSpace(recoveryKeyResult.Value))
+                {
+                    var recoveryKeyView = _serviceProvider.GetRequiredService<RecoveryKeyView>();
+                    var recoveryKeyVm = _serviceProvider.GetRequiredService<ViewModels.RecoveryKeyViewModel>();
+                    recoveryKeyVm.RecoveryKey = recoveryKeyResult.Value;
+                    recoveryKeyView.DataContext = recoveryKeyVm;
+
+                    // Block progress into the app until the user acknowledges saving the key.
+                    await recoveryKeyView.ShowDialog<bool?>(loginWindow);
+                }
+            }
+
             var main = MainWindow;
 
             if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -59,14 +83,25 @@ namespace PasswordManager.App.Services
             registerView.Show();
         }
 
-        public void OnRegisterSuccess(Window registerWindow, string email)
+        public void OnRegisterSuccess(Window registerWindow, string email, string masterPassword)
         {
             registerWindow.Hide();
+            _pendingSignupRegisterWindow = registerWindow;
+            _pendingSignupEmail = email;
+            _pendingSignupMasterPassword = masterPassword;
+            _signupFlowCompleted = false;
 
             var confirmOtpView = _serviceProvider.GetRequiredService<ConfirmOtpView>();
             confirmOtpView.Closed += (_, _) =>
             {
+                if (_signupFlowCompleted)
+                    return;
+
                 registerWindow.Close();
+                _pendingSignupRegisterWindow = null;
+                _pendingSignupEmail = null;
+                _pendingSignupMasterPassword = null;
+
                 _loginWindow?.Show();
                 _loginWindow?.Activate();
             };
@@ -78,7 +113,7 @@ namespace PasswordManager.App.Services
             confirmOtpView.Show();
         }
 
-        public void OnConfirmOtpSuccess(Window confirmOtpWindow)
+        public async void OnConfirmOtpSuccess(Window confirmOtpWindow)
         {
             var confirmOtpVm = confirmOtpWindow.DataContext as ViewModels.ConfirmOtpViewModel;
 
@@ -98,6 +133,62 @@ namespace PasswordManager.App.Services
                 setNewPasswordView.DataContext = setNewPasswordVm;
                 setNewPasswordView.Coordinator = this;
                 setNewPasswordView.Show();
+                return;
+            }
+
+            if (confirmOtpVm?.Purpose == ViewModels.ConfirmOtpViewModel.OtpPurpose.SignupConfirmation
+                && !string.IsNullOrWhiteSpace(_pendingSignupEmail)
+                && !string.IsNullOrWhiteSpace(_pendingSignupMasterPassword))
+            {
+                var authService = _serviceProvider.GetRequiredService<IAuthService>();
+                var email = _pendingSignupEmail;
+                var password = _pendingSignupMasterPassword;
+                
+                _pendingSignupEmail = null;
+                _pendingSignupMasterPassword = null;
+
+                var loginResult = await authService.LoginAsync(email!, password!);
+                if (loginResult.Success)
+                {
+                    var recoveryKeyResult = await authService.SetupRecoveryKeyAsync();
+                    var recoveryKeyView = _serviceProvider.GetRequiredService<RecoveryKeyView>();
+                    var recoveryKeyVm = _serviceProvider.GetRequiredService<ViewModels.RecoveryKeyViewModel>();
+
+                    if (recoveryKeyResult.Success && !string.IsNullOrWhiteSpace(recoveryKeyResult.Value))
+                    {
+                        recoveryKeyVm.RecoveryKey = recoveryKeyResult.Value;
+                    }
+                    else
+                    {
+                        recoveryKeyVm.RecoveryKey = string.Empty;
+                        recoveryKeyVm.ErrorMessage = recoveryKeyResult.Message ?? "Failed to generate recovery key.";
+                    }
+
+                    recoveryKeyView.DataContext = recoveryKeyVm;
+                    await recoveryKeyView.ShowDialog<bool?>(confirmOtpWindow);
+
+                    _signupFlowCompleted = true;
+                    _pendingSignupRegisterWindow?.Close();
+                    _pendingSignupRegisterWindow = null;
+
+                    var main = MainWindow;
+                    if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                        desktop.MainWindow = main;
+
+                    main.Show();
+                    main.Activate();
+                    confirmOtpWindow.Close();
+                    _loginWindow?.Close();
+                    _loginWindow = null;
+                    return;
+                }
+                
+                _promptRecoveryKeyAfterNextLogin = true;
+                confirmOtpWindow.Close();
+                _pendingSignupRegisterWindow?.Close();
+                _pendingSignupRegisterWindow = null;
+                _loginWindow?.Show();
+                _loginWindow?.Activate();
                 return;
             }
 
@@ -157,7 +248,7 @@ namespace PasswordManager.App.Services
             var confirmOtpView = _serviceProvider.GetRequiredService<ConfirmOtpView>();
             confirmOtpView.Closed += (_, _) =>
             {
-                // When user closes/finishes OTP flow, return to login (AuthCoordinator handles it too).
+                // When user closes/finishes OTP flow, return to login.
                 forgotPasswordWindow.Close();
             };
 

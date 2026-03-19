@@ -1,0 +1,56 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PasswordManager.App.Views.RecoveryKeyView"
+        Title="Crypty - Recovery Key"
+        Width="520"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Background="White">
+    <Grid Margin="28" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+        <TextBlock Grid.Row="0"
+                   Text="Save your Recovery Key"
+                   FontSize="24"
+                   FontWeight="Bold"
+                   Foreground="#111827"
+                   Margin="0,0,0,6"/>
+
+        <TextBlock Grid.Row="1"
+                   Text="This key can recover your vault if you forget your master password. Save it somewhere safe. We will never show it again."
+                   FontSize="13"
+                   Foreground="#6B7280"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,18"/>
+
+        <TextBlock Grid.Row="2"
+                   Text="Recovery Key"
+                   FontSize="14"
+                   Foreground="#374151"
+                   Margin="0,0,0,6"/>
+
+        <Border Grid.Row="3" Classes="input-border" Margin="0,0,0,12">
+            <TextBox Classes="inner-input"
+                     Text="{Binding RecoveryKey}"
+                     IsReadOnly="True"
+                     TextWrapping="Wrap"
+                     AcceptsReturn="True"
+                     MinHeight="88"/>
+        </Border>
+
+        <TextBlock Grid.Row="4"
+                   Text="{Binding ErrorMessage}"
+                   Foreground="#C42B1C"
+                   FontSize="12"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,12"
+                   IsVisible="{Binding DisplayErrorVisible}"/>
+
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+            <Button Content="Copy" Classes="secondary" Command="{Binding CopyCommand}" MinWidth="90"/>
+            <Button Content="Download .txt" Classes="secondary" Command="{Binding DownloadCommand}" MinWidth="120"/>
+            <Button Content="I've saved it" Classes="primary" Command="{Binding ContinueCommand}" MinWidth="120"/>
+        </StackPanel>
+    </Grid>
+</Window>
+

@@ -71,7 +71,6 @@ namespace PasswordManager.App
 
             services.AddSingleton<ICryptoService, CryptoService>();
             services.AddSingleton<ISessionService, SessionService>();
-            services.AddSingleton<IAuthService, AuthService>();
             services.AddSingleton<IVaultRepository, VaultRepository>();
             services.AddSingleton<IVaultService, VaultService>();
             services.AddSingleton<IPasswordStrengthChecker, ZxcvbnPasswordStrengthChecker>();
@@ -84,16 +83,22 @@ namespace PasswordManager.App
             services.AddSingleton<IDialogService, DialogService>();
             services.AddLogging();
 
+            services.AddSingleton<IAuthService, AuthService>();
+
             services.AddTransient<LoginViewModel>();
             services.AddTransient<RegisterViewModel>();
+            services.AddTransient<ForgotPasswordViewModel>();
             services.AddTransient<VaultListViewModel>();
             services.AddTransient<EntryDetailViewModel>();
             services.AddTransient<ConfirmOtpViewModel>();
+            services.AddTransient<SetNewPasswordViewModel>();
             services.AddTransient<LoginView>();
             services.AddTransient<RegisterView>();
+            services.AddTransient<ForgotPasswordView>();
             services.AddTransient<VaultListView>();
             services.AddTransient<EntryDetailView>();
             services.AddTransient<ConfirmOtpView>();
+            services.AddTransient<SetNewPasswordView>();
             services.AddSingleton<MainWindow>();
 
             ServiceProvider = services.BuildServiceProvider();

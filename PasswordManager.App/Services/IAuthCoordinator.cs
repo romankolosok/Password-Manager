@@ -15,5 +15,11 @@ namespace PasswordManager.App.Services
         void OnConfirmOtpSuccess(Window confirmOtpWindow);
         
         void RequestConfirmOtpFromLogin(Window loginWindow, string email);
+
+        void RequestForgotPassword(Window loginWindow);
+
+        void OnForgotPasswordSuccess(Window forgotPasswordWindow, string email);
+
+        void OnSetNewPasswordSuccess(Window setNewPasswordWindow);
     }
 }

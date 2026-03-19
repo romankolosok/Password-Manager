@@ -72,6 +72,7 @@ namespace PasswordManager.App.Services
             };
             var confirmOtpVm = _serviceProvider.GetRequiredService<ViewModels.ConfirmOtpViewModel>();
             confirmOtpVm.Email = email;
+            confirmOtpVm.Purpose = ViewModels.ConfirmOtpViewModel.OtpPurpose.SignupConfirmation;
             confirmOtpView.DataContext = confirmOtpVm;
             confirmOtpView.Coordinator = this;
             confirmOtpView.Show();
@@ -79,7 +80,35 @@ namespace PasswordManager.App.Services
 
         public void OnConfirmOtpSuccess(Window confirmOtpWindow)
         {
+            var confirmOtpVm = confirmOtpWindow.DataContext as ViewModels.ConfirmOtpViewModel;
+
+            if (confirmOtpVm?.Purpose == ViewModels.ConfirmOtpViewModel.OtpPurpose.PasswordRecovery)
+            {
+                confirmOtpWindow.Close();
+
+                var setNewPasswordView = _serviceProvider.GetRequiredService<SetNewPasswordView>();
+                setNewPasswordView.Closed += (_, _) =>
+                {
+                    _loginWindow?.Show();
+                    _loginWindow?.Activate();
+                };
+
+                var setNewPasswordVm = _serviceProvider.GetRequiredService<ViewModels.SetNewPasswordViewModel>();
+                setNewPasswordVm.Email = confirmOtpVm.Email;
+                setNewPasswordView.DataContext = setNewPasswordVm;
+                setNewPasswordView.Coordinator = this;
+                setNewPasswordView.Show();
+                return;
+            }
+
             confirmOtpWindow.Close();
+            _loginWindow?.Show();
+            _loginWindow?.Activate();
+        }
+
+        public void OnSetNewPasswordSuccess(Window setNewPasswordWindow)
+        {
+            setNewPasswordWindow.Close();
             _loginWindow?.Show();
             _loginWindow?.Activate();
         }
@@ -97,6 +126,44 @@ namespace PasswordManager.App.Services
             };
             var confirmOtpVm = _serviceProvider.GetRequiredService<ViewModels.ConfirmOtpViewModel>();
             confirmOtpVm.Email = email;
+            confirmOtpVm.Purpose = ViewModels.ConfirmOtpViewModel.OtpPurpose.SignupConfirmation;
+            confirmOtpView.DataContext = confirmOtpVm;
+            confirmOtpView.Coordinator = this;
+            confirmOtpView.Show();
+        }
+
+        public void RequestForgotPassword(Window loginWindow)
+        {
+            _loginWindow = loginWindow;
+            loginWindow.Hide();
+
+            var forgotPasswordView = _serviceProvider.GetRequiredService<ForgotPasswordView>();
+            forgotPasswordView.Closed += (_, _) =>
+            {
+                loginWindow.Show();
+                _loginWindow = loginWindow;
+            };
+
+            var forgotPasswordVm = _serviceProvider.GetRequiredService<ViewModels.ForgotPasswordViewModel>();
+            forgotPasswordView.DataContext = forgotPasswordVm;
+            forgotPasswordView.Coordinator = this;
+            forgotPasswordView.Show();
+        }
+
+        public void OnForgotPasswordSuccess(Window forgotPasswordWindow, string email)
+        {
+            forgotPasswordWindow.Hide();
+
+            var confirmOtpView = _serviceProvider.GetRequiredService<ConfirmOtpView>();
+            confirmOtpView.Closed += (_, _) =>
+            {
+                // When user closes/finishes OTP flow, return to login (AuthCoordinator handles it too).
+                forgotPasswordWindow.Close();
+            };
+
+            var confirmOtpVm = _serviceProvider.GetRequiredService<ViewModels.ConfirmOtpViewModel>();
+            confirmOtpVm.Email = email;
+            confirmOtpVm.Purpose = ViewModels.ConfirmOtpViewModel.OtpPurpose.PasswordRecovery;
             confirmOtpView.DataContext = confirmOtpVm;
             confirmOtpView.Coordinator = this;
             confirmOtpView.Show();

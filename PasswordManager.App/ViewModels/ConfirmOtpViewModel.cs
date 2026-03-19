@@ -11,6 +11,15 @@ namespace PasswordManager.App.ViewModels
 
         public string Email { get; set; } = string.Empty;
 
+        public enum OtpPurpose
+        {
+            SignupConfirmation,
+            PasswordRecovery
+        }
+
+        // Set by coordinator before showing the view.
+        public OtpPurpose Purpose { get; set; } = OtpPurpose.SignupConfirmation;
+
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(ConfirmOtpCommand))]
         [NotifyPropertyChangedFor(nameof(DisplayError))]
@@ -180,7 +189,9 @@ namespace PasswordManager.App.ViewModels
             IsLoading = true;
             ConfirmOtpError = string.Empty;
 
-            Result result = await _authService.VerifyEmailConfirmationAsync(Email, ConfirmOTP.Trim());
+            Result result = Purpose == OtpPurpose.PasswordRecovery
+                ? await _authService.VerifyPasswordResetAsync(Email, ConfirmOTP.Trim())
+                : await _authService.VerifyEmailConfirmationAsync(Email, ConfirmOTP.Trim());
 
             if (result.Success)
                 ConfirmOtpSuccessful?.Invoke(this, EventArgs.Empty);
@@ -196,7 +207,9 @@ namespace PasswordManager.App.ViewModels
             IsResending = true;
             ResendOtpError = string.Empty;
 
-            var result = await _authService.SendOTPConfirmationAsync(Email);
+            var result = Purpose == OtpPurpose.PasswordRecovery
+                ? await _authService.SendResetPasswordEmailAsync(Email)
+                : await _authService.SendOTPConfirmationAsync(Email);
 
             if (!result.Success)
                 ResendOtpError = result.Message ?? "Failed to resend code.";

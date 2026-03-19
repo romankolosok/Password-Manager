@@ -9,5 +9,6 @@ namespace PasswordManager.Core.Services.Interfaces
     {
         Task<Result> CreateProfileAsync(UserProfileEntity profile);
         Task<Result<UserProfileEntity>> GetProfileAsync(Guid userId);
+        Task<Result> UpdateProfileAsync(UserProfileEntity profile);
     }
 }

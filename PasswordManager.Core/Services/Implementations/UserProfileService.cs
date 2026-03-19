@@ -55,5 +55,22 @@ namespace PasswordManager.Core.Services.Implementations
                 return Result<UserProfileEntity>.Fail($"Failed to get user profile: {ex.Message}");
             }
         }
+
+        public async Task<Result> UpdateProfileAsync(UserProfileEntity profile)
+        {
+            try
+            {
+                await _vaultRepository.UpdateUserProfileAsync(profile);
+                return Result.Ok();
+            }
+            catch (Supabase.Postgrest.Exceptions.PostgrestException ex)
+            {
+                return Result.Fail($"Database error while updating profile: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return Result.Fail($"Failed to update user profile: {ex.Message}");
+            }
+        }
     }
 }

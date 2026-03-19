@@ -29,5 +29,9 @@ namespace PasswordManager.Core.Services.Interfaces
         public bool IsLocked();
 
         Task<Result> ChangeMasterPasswordAsync(string currentPassword, string newPassword);
+        
+        Task<Result<string>> SetupRecoveryKeyAsync();
+        
+        Task<Result> RecoverVaultAsync(string recoveryKey, string newMasterPassword);
     }
 }

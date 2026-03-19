@@ -12,6 +12,8 @@ namespace PasswordManager.Core.Services.Interfaces
 
         Task CreateUserProfileAsync(UserProfileEntity profile);
 
+        Task UpdateUserProfileAsync(UserProfileEntity profile);
+
         Task<List<VaultEntryEntity>> GetAllEntriesAsync(Guid userId);
 
         Task<VaultEntryEntity?> GetEntryAsync(Guid userId, Guid entryId);

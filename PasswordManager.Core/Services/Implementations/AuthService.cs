@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PasswordManager.Core.Exceptions;
+using PasswordManager.Core.Helpers;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Core.Validators;
@@ -180,7 +181,7 @@ namespace PasswordManager.Core.Services.Implementations
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Email confirmation failed for {Email}", email);
+                _logger.LogWarning(ex, "Email confirmation failed for {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }
@@ -192,11 +193,11 @@ namespace PasswordManager.Core.Services.Implementations
                 var session = await _supabase.Auth.VerifyOTP(email, otpCode, Constants.EmailOtpType.Recovery);
                 if (session?.User == null)
                     return Result.Fail(AuthMessages.OtpInvalidOrExpired);
-                
+
                 var userId = session.User.Id;
                 if (string.IsNullOrEmpty(userId))
                     return Result.Fail("Invalid user ID.");
-                
+
                 var userIdGuid = Guid.Parse(userId);
                 _sessionService.SetUser(userIdGuid, session.User.Email ?? email, session.AccessToken);
 
@@ -204,7 +205,7 @@ namespace PasswordManager.Core.Services.Implementations
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Password reset failed for {Email}", email);
+                _logger.LogWarning(ex, "Password reset failed for {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }
@@ -214,12 +215,12 @@ namespace PasswordManager.Core.Services.Implementations
             try
             {
                 await _supabase.Auth.ResetPasswordForEmail(email);
-                _logger.LogInformation("Password reset email sent to {Email}", email);
+                _logger.LogInformation("Password reset email sent to {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result.Ok();
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Password reset email failed for {Email}", email);
+                _logger.LogWarning(ex, "Password reset email failed for {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }
@@ -229,12 +230,12 @@ namespace PasswordManager.Core.Services.Implementations
             try
             {
                 await _supabase.Auth.SignInWithOtp(new SignInWithPasswordlessEmailOptions(email));
-                _logger.LogInformation("Sent OTP confirmation email to {Email}", email);
+                _logger.LogInformation("Sent OTP confirmation email to {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result.Ok();
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Email confirmation resend failed for {Email}", email);
+                _logger.LogWarning(ex, "Email confirmation resend failed for {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }
@@ -311,7 +312,7 @@ namespace PasswordManager.Core.Services.Implementations
             var encryptedNewDekResult = _cryptoService.Encrypt(dekBase64, newKek);
             if (!encryptedNewDekResult.Success)
                 return Result.Fail("Failed to re-encrypt vault key. Please try again.");
-            
+
             try
             {
                 await _supabase.Auth.Update(new UserAttributes { Password = newPassword });
@@ -498,13 +499,13 @@ namespace PasswordManager.Core.Services.Implementations
         {
             if (session?.User == null)
             {
-                _logger.LogInformation("User registered but email confirmation required for {Email}", email);
+                _logger.LogInformation("User registered but email confirmation required for {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result.Fail("Registration successful! Please check your email to confirm your account before signing in.");
             }
 
             if (string.IsNullOrEmpty(session.User.Id))
             {
-                _logger.LogError("User ID is null or empty after signup for {Email}", email);
+                _logger.LogError("User ID is null or empty after signup for {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 _supabase.Auth.SignOut();
                 return Result.Fail("Registration failed. Invalid user ID.");
             }
@@ -522,7 +523,7 @@ namespace PasswordManager.Core.Services.Implementations
 
             if (string.IsNullOrEmpty(session.User.Id))
             {
-                _logger.LogError("User ID is null or empty after login for {Email}", email);
+                _logger.LogError("User ID is null or empty after login for {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result.Fail("Login failed. Invalid user ID.");
             }
 
@@ -546,7 +547,7 @@ namespace PasswordManager.Core.Services.Implementations
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Registration failed for {Email}", email);
+                _logger.LogWarning(ex, "Registration failed for {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result<Session?>.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }
@@ -567,7 +568,7 @@ namespace PasswordManager.Core.Services.Implementations
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Login failed for {Email}", email);
+                _logger.LogWarning(ex, "Login failed for {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result<Session>.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }

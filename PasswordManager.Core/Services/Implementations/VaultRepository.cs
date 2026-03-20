@@ -80,5 +80,16 @@ namespace PasswordManager.Core.Services.Implementations
             entry.UpdatedAt = DateTime.UtcNow;
             await _supabase.From<VaultEntryEntity>().Upsert(entry);
         }
+
+        public async Task UpdateUserProfileAsync(UserProfileEntity profile)
+        {
+            var options = new Supabase.Postgrest.QueryOptions
+            {
+                Returning = Supabase.Postgrest.QueryOptions.ReturnType.Minimal
+            };
+            await _supabase.From<UserProfileEntity>()
+                .Where(x => x.Id == profile.Id)
+                .Update(profile, options);
+        }
     }
 }

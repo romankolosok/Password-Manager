@@ -48,5 +48,10 @@ namespace PasswordManager.App.Views
         {
             Coordinator?.RequestRegister(this);
         }
+
+        private void ForgotPasswordButton_Click(object? sender, RoutedEventArgs e)
+        {
+            Coordinator?.RequestForgotPassword(this);
+        }
     }
 }

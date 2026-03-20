@@ -15,9 +15,15 @@ namespace PasswordManager.Core.Entities
 
         [Column("Salt")]
         public string Salt { get; set; } = string.Empty;
-
-        [Column("EncryptedVerificationToken")]
-        public string EncryptedVerificationToken { get; set; } = string.Empty;
+        
+        [Column("EncryptedDEK")]
+        public string EncryptedDEK { get; set; } = string.Empty;
+        
+        [Column("RecoveryEncryptedDEK")]
+        public string? RecoveryEncryptedDEK { get; set; }
+        
+        [Column("RecoverySalt")]
+        public string? RecoverySalt { get; set; }
 
         [Column("CreatedAt")]
         public DateTime CreatedAt { get; set; }

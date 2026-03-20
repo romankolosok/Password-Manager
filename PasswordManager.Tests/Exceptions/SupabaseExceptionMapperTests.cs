@@ -20,7 +20,7 @@ namespace PasswordManager.Tests.Exceptions
         [Fact]
         public void MapAuthExceptionGotrueStatus422ReturnsAlreadyExists()
         {
-            var ex = CreateGotrueException(422);
+            var ex = CreateGotrueException(422, "already registered");
 
             var result = _mapper.MapAuthException(ex);
 

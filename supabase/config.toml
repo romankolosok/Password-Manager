@@ -228,6 +228,10 @@ otp_expiry = 5
 subject = "Your verification code"
 content_path = "./supabase/templates/signup.html"
 
+[auth.email.template.recovery]
+subject = "Your recovery verification code"
+content_path = "./supabase/templates/signup.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

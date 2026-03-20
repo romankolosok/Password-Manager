@@ -27,7 +27,8 @@ namespace PasswordManager.Core.Exceptions
             // Map based on status code where we have clear semantics; otherwise fall back to message-based mapping.
             return exception.StatusCode switch
             {
-                422 => Result.Fail(AuthMessages.AccountAlreadyExists),
+                // 422 can mean "already exists" but also other validation errors; inspect message.
+                422 => Result.Fail(GetUserFriendlyMessage(exception)),
                 // 400 can mean many things (invalid credentials, email not confirmed, bad input, etc.);
                 // delegate to GetUserFriendlyMessage so we can inspect the message and distinguish cases.
                 400 => Result.Fail(GetUserFriendlyMessage(exception)),

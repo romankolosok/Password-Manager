@@ -5,13 +5,13 @@ using PasswordManager.App.ViewModels;
 
 namespace PasswordManager.App.Views
 {
-    public partial class RegisterView : Window
+    public partial class ForgotPasswordView : Window
     {
-        private RegisterViewModel? _subscribedVm;
+        private ForgotPasswordViewModel? _subscribedVm;
 
         public IAuthCoordinator? Coordinator { get; set; }
 
-        public RegisterView()
+        public ForgotPasswordView()
         {
             InitializeComponent();
             DataContextChanged += OnDataContextChanged;
@@ -20,17 +20,17 @@ namespace PasswordManager.App.Views
         private void OnDataContextChanged(object? sender, System.EventArgs e)
         {
             if (_subscribedVm != null)
-                _subscribedVm.RegisterSuccessful -= OnRegisterSuccessful;
+                _subscribedVm.RecoveryEmailSent -= OnRecoveryEmailSent;
 
-            _subscribedVm = DataContext as RegisterViewModel;
+            _subscribedVm = DataContext as ForgotPasswordViewModel;
             if (_subscribedVm != null)
-                _subscribedVm.RegisterSuccessful += OnRegisterSuccessful;
+                _subscribedVm.RecoveryEmailSent += OnRecoveryEmailSent;
         }
 
-        private void OnRegisterSuccessful(object? sender, System.EventArgs e)
+        private void OnRecoveryEmailSent(object? sender, System.EventArgs e)
         {
-            if (sender is RegisterViewModel vm)
-                Coordinator?.OnRegisterSuccess(this, vm.Email, vm.MasterPassword);
+            if (sender is ForgotPasswordViewModel vm)
+                Coordinator?.OnForgotPasswordSuccess(this, vm.Email.Trim());
         }
 
         private void BackToLogin_Click(object? sender, RoutedEventArgs e)
@@ -39,3 +39,4 @@ namespace PasswordManager.App.Views
         }
     }
 }
+

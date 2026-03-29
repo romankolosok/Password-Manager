@@ -21,5 +21,7 @@ namespace PasswordManager.App.Services
         void OnForgotPasswordSuccess(Window forgotPasswordWindow, string email);
 
         void OnSetNewPasswordSuccess(Window setNewPasswordWindow);
+
+        void ShowChangePassword();
     }
 }

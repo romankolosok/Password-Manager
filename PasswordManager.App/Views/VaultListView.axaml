@@ -18,17 +18,53 @@
                     <TextBlock Text="{Binding CurrentUserEmail}" FontSize="13" Foreground="#6B7280" Margin="0,2,0,0"/>
                 </StackPanel>
             </StackPanel>
-            <!-- Lock button -->
-            <Button Grid.Column="1" Command="{Binding LockCommand}" Classes="secondary"
-                    Padding="14,10" VerticalAlignment="Center" ToolTip.Tip="Lock vault">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Viewbox Width="18" Height="18" Margin="0,0,6,0">
-                        <Path Data="M12,2 C9.24,2 7,4.24 7,7 L7,9 L5,9 C3.9,9 3,9.9 3,11 L3,20 C3,21.1 3.9,22 5,22 L19,22 C20.1,22 21,21.1 21,20 L21,11 C21,9.9 20.1,9 19,9 L17,9 L17,7 C17,4.24 14.76,2 12,2 Z M12,4 C13.66,4 15,5.34 15,7 L15,9 L9,9 L9,7 C9,5.34 10.34,4 12,4 Z"
-                              Fill="#374151" Stroke="#374151" StrokeThickness="0.5"/>
-                    </Viewbox>
-                    <TextBlock Text="Lock" FontSize="14" FontWeight="SemiBold" Foreground="#374151" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Button>
+            <!-- Account button -->
+            <Grid Grid.Column="1" VerticalAlignment="Center">
+                <Button x:Name="AccountBtn" Command="{Binding ToggleAccountMenuCommand}" Classes="secondary"
+                        Padding="14,10" VerticalAlignment="Center" ToolTip.Tip="Account">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Viewbox Width="18" Height="18" Margin="0,0,6,0">
+                            <Path Data="M12,12 C14.21,12 16,10.21 16,8 C16,5.79 14.21,4 12,4 C9.79,4 8,5.79 8,8 C8,10.21 9.79,12 12,12 Z M12,14 C9.33,14 4,15.34 4,18 L4,20 L20,20 L20,18 C20,15.34 14.67,14 12,14 Z"
+                                  Fill="#374151"/>
+                        </Viewbox>
+                        <TextBlock Text="Account" FontSize="14" FontWeight="SemiBold" Foreground="#374151" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Popup PlacementTarget="{Binding #AccountBtn}"
+                       PlacementMode="Bottom"
+                       IsOpen="{Binding IsAccountMenuOpen, Mode=TwoWay}"
+                       IsLightDismissEnabled="True"
+                       HorizontalOffset="-60">
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
+                            CornerRadius="8" Padding="4"
+                            BoxShadow="0 4 16 0 #1A000000">
+                        <StackPanel MinWidth="180">
+                            <Button Command="{Binding LockCommand}" Classes="secondary"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                    Padding="12,10" Margin="0,0,0,2" CornerRadius="6">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,10,0">
+                                        <Path Data="M12,2 C9.24,2 7,4.24 7,7 L7,9 L5,9 C3.9,9 3,9.9 3,11 L3,20 C3,21.1 3.9,22 5,22 L19,22 C20.1,22 21,21.1 21,20 L21,11 C21,9.9 20.1,9 19,9 L17,9 L17,7 C17,4.24 14.76,2 12,2 Z M12,4 C13.66,4 15,5.34 15,7 L15,9 L9,9 L9,7 C9,5.34 10.34,4 12,4 Z"
+                                              Fill="#374151" Stroke="#374151" StrokeThickness="0.5"/>
+                                    </Viewbox>
+                                    <TextBlock Text="Lock vault" FontSize="14" Foreground="#374151" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding ChangePasswordCommand}" Classes="secondary"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                    Padding="12,10" CornerRadius="6">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,10,0">
+                                        <Path Data="M12.65,10 C11.83,7.67 9.61,6 7,6 C3.69,6 1,8.69 1,12 C1,15.31 3.69,18 7,18 C9.61,18 11.83,16.33 12.65,14 L17,14 L17,18 L21,18 L21,14 L23,14 L23,10 L12.65,10 Z M7,14 C5.9,14 5,13.1 5,12 C5,10.9 5.9,10 7,10 C8.1,10 9,10.9 9,12 C9,13.1 8.1,14 7,14 Z"
+                                              Fill="#374151"/>
+                                    </Viewbox>
+                                    <TextBlock Text="Change password" FontSize="14" Foreground="#374151" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+            </Grid>
         </Grid>
 
         <!-- Search bar + Add Secret -->

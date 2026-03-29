@@ -92,7 +92,7 @@ namespace PasswordManager.App.ViewModels
         }
 
         public event EventHandler? LoginSuccessful;
-        
+
         public event EventHandler? EmailNotConfirmed;
 
         public LoginViewModel(IAuthService authService)

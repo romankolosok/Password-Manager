@@ -13,7 +13,7 @@ namespace PasswordManager.App.Services
         void OnRegisterSuccess(Window registerWindow, string email, string masterPassword);
 
         void OnConfirmOtpSuccess(Window confirmOtpWindow);
-        
+
         void RequestConfirmOtpFromLogin(Window loginWindow, string email);
 
         void RequestForgotPassword(Window loginWindow);

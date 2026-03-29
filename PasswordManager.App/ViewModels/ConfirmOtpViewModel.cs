@@ -90,7 +90,7 @@ namespace PasswordManager.App.ViewModels
         [NotifyPropertyChangedFor(nameof(DisplayError))]
         [NotifyPropertyChangedFor(nameof(DisplayErrorVisible))]
         private string _confirmOtpError = string.Empty;
-        
+
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(ResendOtpCommand))]
         [NotifyPropertyChangedFor(nameof(DisplayError))]

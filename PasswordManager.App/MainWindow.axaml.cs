@@ -1,7 +1,5 @@
-using System;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Microsoft.Extensions.DependencyInjection;
 using PasswordManager.App.Services;
 using PasswordManager.App.ViewModels;

@@ -213,8 +213,8 @@ namespace PasswordManager.App.Services
             var window = new Window
             {
                 Title = "Crypty - Change Password",
-                Width = 440,
-                Height = 500,
+                Width = 400,
+                Height = 360,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
                 Content = view

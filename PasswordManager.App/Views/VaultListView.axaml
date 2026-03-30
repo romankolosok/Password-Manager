@@ -34,7 +34,8 @@
                        PlacementMode="Bottom"
                        IsOpen="{Binding IsAccountMenuOpen, Mode=TwoWay}"
                        IsLightDismissEnabled="True"
-                       HorizontalOffset="-60">
+                       HorizontalOffset="-38"
+                       VerticalOffset="5">
                     <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
                             CornerRadius="8" Padding="4"
                             BoxShadow="0 4 16 0 #1A000000">

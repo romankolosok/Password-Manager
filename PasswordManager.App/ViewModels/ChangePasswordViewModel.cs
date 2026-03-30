@@ -92,6 +92,11 @@ namespace PasswordManager.App.ViewModels
 
         private string? GetValidationError()
         {
+            if (NewMasterPassword == OldMasterPassword)
+            {
+                return "New password must be different from old password";
+            }
+
             var passwordResult = _passwordValidator.Validate(new PasswordInput { Password = NewMasterPassword });
             if (!passwordResult.IsValid)
                 return string.Join(" ", passwordResult.Errors.Select(e => e.ErrorMessage));

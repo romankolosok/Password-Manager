@@ -1,7 +1,5 @@
-using System;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Microsoft.Extensions.DependencyInjection;
 using PasswordManager.App.Services;
 using PasswordManager.App.ViewModels;
@@ -96,6 +94,7 @@ namespace PasswordManager.App
             _currentVaultListViewModel = vm;
             vm.NavigateToLogin += OnNavigateToLogin;
             vm.NavigateToEntryDetail += OnNavigateToEntryDetail;
+            vm.NavigateToChangePassword += OnNavigateToChangePassword;
         }
 
         private void UnsubscribeFromVaultListViewModel()
@@ -104,6 +103,7 @@ namespace PasswordManager.App
             {
                 _currentVaultListViewModel.NavigateToLogin -= OnNavigateToLogin;
                 _currentVaultListViewModel.NavigateToEntryDetail -= OnNavigateToEntryDetail;
+                _currentVaultListViewModel.NavigateToChangePassword -= OnNavigateToChangePassword;
                 _currentVaultListViewModel.Detach();
                 _currentVaultListViewModel = null;
             }
@@ -115,6 +115,7 @@ namespace PasswordManager.App
             {
                 vm.NavigateToLogin -= OnNavigateToLogin;
                 vm.NavigateToEntryDetail -= OnNavigateToEntryDetail;
+                vm.NavigateToChangePassword -= OnNavigateToChangePassword;
                 vm.Detach();
                 if (_currentVaultListViewModel == vm)
                     _currentVaultListViewModel = null;
@@ -132,6 +133,12 @@ namespace PasswordManager.App
         private void OnNavigateToEntryDetail(object? sender, VaultEntry? e)
         {
             ShowEntryDetailView(e);
+        }
+
+        private void OnNavigateToChangePassword(object? sender, EventArgs e)
+        {
+            var coordinator = _serviceProvider.GetService<IAuthCoordinator>();
+            coordinator?.ShowChangePassword();
         }
 
         private void OnEntryDetailSaved(object? sender, EventArgs e)

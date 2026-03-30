@@ -1,4 +1,3 @@
-using PasswordManager.Core;
 using PasswordManager.Core.Exceptions;
 using Supabase.Gotrue.Exceptions;
 

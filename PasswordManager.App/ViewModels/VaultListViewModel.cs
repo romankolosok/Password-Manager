@@ -119,11 +119,27 @@ namespace PasswordManager.App.ViewModels
             _clipboardService.CopyWithAutoClear(entry.Username ?? "", 30);
         }
 
+        [ObservableProperty]
+        private bool _isAccountMenuOpen;
+
+        [RelayCommand]
+        private void ToggleAccountMenu() => IsAccountMenuOpen = !IsAccountMenuOpen;
+
         [RelayCommand]
         private async Task Lock()
         {
+            IsAccountMenuOpen = false;
             await _authService.LockAsync();
         }
+
+        [RelayCommand]
+        private void ChangePassword()
+        {
+            IsAccountMenuOpen = false;
+            NavigateToChangePassword?.Invoke(this, EventArgs.Empty);
+        }
+
+        public event EventHandler? NavigateToChangePassword;
 
         [RelayCommand(CanExecute = nameof(CanExecuteSearch))]
         private void Search()

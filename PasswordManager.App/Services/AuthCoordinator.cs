@@ -2,8 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Microsoft.Extensions.DependencyInjection;
-using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.App.Views;
+using PasswordManager.Core.Services.Interfaces;
 
 namespace PasswordManager.App.Services
 {
@@ -143,7 +143,7 @@ namespace PasswordManager.App.Services
                 var authService = _serviceProvider.GetRequiredService<IAuthService>();
                 var email = _pendingSignupEmail;
                 var password = _pendingSignupMasterPassword;
-                
+
                 _pendingSignupEmail = null;
                 _pendingSignupMasterPassword = null;
 
@@ -182,7 +182,7 @@ namespace PasswordManager.App.Services
                     _loginWindow = null;
                     return;
                 }
-                
+
                 _promptRecoveryKeyAfterNextLogin = true;
                 confirmOtpWindow.Close();
                 _pendingSignupRegisterWindow?.Close();
@@ -202,6 +202,27 @@ namespace PasswordManager.App.Services
             setNewPasswordWindow.Close();
             _loginWindow?.Show();
             _loginWindow?.Activate();
+        }
+
+        public void ShowChangePassword()
+        {
+            var vm = _serviceProvider.GetRequiredService<ViewModels.ChangePasswordViewModel>();
+            var view = _serviceProvider.GetRequiredService<ChangePasswordView>();
+            view.DataContext = vm;
+
+            var window = new Window
+            {
+                Title = "Crypty - Change Password",
+                Width = 400,
+                Height = 360,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                Content = view
+            };
+
+            vm.ChangePasswordSuccessful += (_, _) => window.Close();
+
+            _ = window.ShowDialog(MainWindow);
         }
 
         public void RequestConfirmOtpFromLogin(Window loginWindow, string email)

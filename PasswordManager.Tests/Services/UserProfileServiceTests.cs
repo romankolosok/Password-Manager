@@ -142,5 +142,55 @@ namespace PasswordManager.Tests.Services
             Assert.False(result.Success);
             Assert.Equal($"Failed to get user profile: {errorMsg}", result.Message);
         }
+
+        [Fact]
+        public async Task UpdateProfileAsyncReturnsSuccessWhenRepoUpdatesProfile()
+        {
+            _vaultRepository.Reset();
+
+            var user = MakeEntity();
+            _vaultRepository
+                .Setup(r => r.UpdateUserProfileAsync(user))
+                .Returns(Task.CompletedTask);
+
+            var result = await CreateService().UpdateProfileAsync(user);
+
+            Assert.True(result.Success);
+            _vaultRepository.Verify(r => r.UpdateUserProfileAsync(user), Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateProfileAsyncReturnsFailureWhenRepoThrowsPostgresException()
+        {
+            _vaultRepository.Reset();
+            var errorMsg = "constraint violation";
+
+            var user = MakeEntity();
+            _vaultRepository
+                .Setup(r => r.UpdateUserProfileAsync(It.IsAny<UserProfileEntity>()))
+                .ThrowsAsync(new PostgrestException(errorMsg));
+
+            var result = await CreateService().UpdateProfileAsync(user);
+
+            Assert.False(result.Success);
+            Assert.Equal($"Database error while updating profile: {errorMsg}", result.Message);
+        }
+
+        [Fact]
+        public async Task UpdateProfileAsyncReturnsFailureWhenRepoThrowsGenericException()
+        {
+            _vaultRepository.Reset();
+            var errorMsg = "network failure";
+
+            var user = MakeEntity();
+            _vaultRepository
+                .Setup(r => r.UpdateUserProfileAsync(It.IsAny<UserProfileEntity>()))
+                .ThrowsAsync(new Exception(errorMsg));
+
+            var result = await CreateService().UpdateProfileAsync(user);
+
+            Assert.False(result.Success);
+            Assert.Equal($"Failed to update user profile: {errorMsg}", result.Message);
+        }
     }
 }

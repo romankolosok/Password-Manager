@@ -3,9 +3,6 @@ using CommunityToolkit.Mvvm.Input;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Core.Validators;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace PasswordManager.App.ViewModels
 {

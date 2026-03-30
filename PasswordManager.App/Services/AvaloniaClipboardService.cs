@@ -4,7 +4,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using PasswordManager.Core.Services.Interfaces;
-using System.Threading.Tasks;
 
 namespace PasswordManager.App.Services
 {

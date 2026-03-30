@@ -17,7 +17,7 @@ namespace PasswordManager.Core.Services.Interfaces
         public Task<Result> VerifyEmailConfirmationAsync(string email, string confirmationCode);
 
         public Task<Result> SendOTPConfirmationAsync(string email);
-        
+
         public Task<Result> VerifyPasswordResetAsync(string email, string otpCode);
 
         public Task<Result> SendResetPasswordEmailAsync(string email);
@@ -29,9 +29,9 @@ namespace PasswordManager.Core.Services.Interfaces
         public bool IsLocked();
 
         Task<Result> ChangeMasterPasswordAsync(string currentPassword, string newPassword);
-        
+
         Task<Result<string>> SetupRecoveryKeyAsync();
-        
+
         Task<Result> RecoverVaultAsync(string recoveryKey, string newMasterPassword);
     }
 }

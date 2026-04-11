@@ -1,8 +1,8 @@
 using Moq;
 using PasswordManager.Core.Entities;
+using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Services.Implementations;
 using PasswordManager.Core.Services.Interfaces;
-using Supabase.Postgrest.Exceptions;
 
 namespace PasswordManager.Tests.Services
 {
@@ -40,7 +40,7 @@ namespace PasswordManager.Tests.Services
         }
 
         [Fact]
-        public async Task CreateProfileAsyncReturnsFailureWhenRepoThrowsPostgresException()
+        public async Task CreateProfileAsyncReturnsFailureWhenRepoThrowsRepositoryException()
         {
             _vaultRepository.Reset();
             var errorMsg = "db unavailable";
@@ -48,7 +48,7 @@ namespace PasswordManager.Tests.Services
             var user = MakeEntity();
             _vaultRepository
                 .Setup(r => r.CreateUserProfileAsync(It.IsAny<UserProfileEntity>()))
-                .ThrowsAsync(new PostgrestException(errorMsg));
+                .ThrowsAsync(new RepositoryException(errorMsg));
 
             var result = await CreateService().CreateProfileAsync(user);
 
@@ -110,7 +110,7 @@ namespace PasswordManager.Tests.Services
         }
 
         [Fact]
-        public async Task GetProfileAsyncReturnsFailureWhenRepoThrowsPostgresException()
+        public async Task GetProfileAsyncReturnsFailureWhenRepoThrowsRepositoryException()
         {
             _vaultRepository.Reset();
             var errorMsg = "db unavailable";
@@ -118,7 +118,7 @@ namespace PasswordManager.Tests.Services
             var userId = TestData.UserId();
             _vaultRepository
                 .Setup(r => r.GetUserProfileAsync(It.IsAny<Guid>()))
-                .ThrowsAsync(new PostgrestException(errorMsg));
+                .ThrowsAsync(new RepositoryException(errorMsg));
 
             var result = await CreateService().GetProfileAsync(userId);
 
@@ -160,7 +160,7 @@ namespace PasswordManager.Tests.Services
         }
 
         [Fact]
-        public async Task UpdateProfileAsyncReturnsFailureWhenRepoThrowsPostgresException()
+        public async Task UpdateProfileAsyncReturnsFailureWhenRepoThrowsRepositoryException()
         {
             _vaultRepository.Reset();
             var errorMsg = "constraint violation";
@@ -168,7 +168,7 @@ namespace PasswordManager.Tests.Services
             var user = MakeEntity();
             _vaultRepository
                 .Setup(r => r.UpdateUserProfileAsync(It.IsAny<UserProfileEntity>()))
-                .ThrowsAsync(new PostgrestException(errorMsg));
+                .ThrowsAsync(new RepositoryException(errorMsg));
 
             var result = await CreateService().UpdateProfileAsync(user);
 

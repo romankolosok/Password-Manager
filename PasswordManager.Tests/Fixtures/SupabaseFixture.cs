@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Implementations;
+using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Tests.Helpers;
 using Supabase.Gotrue;
 
@@ -32,6 +33,7 @@ namespace PasswordManager.Tests.Fixtures
         public Supabase.Client? AdminSupabaseClient { get; private set; }
         public CryptoService CryptoService { get; } = new();
         public SessionService SessionService { get; private set; } = null!;
+        public IAuthClient AuthClient { get; private set; } = null!;
         public VaultRepository VaultRepository { get; private set; } = null!;
         public UserProfileService UserProfileService { get; private set; } = null!;
         public SupabaseExceptionMapper ExceptionMapper { get; } = new();
@@ -72,13 +74,13 @@ namespace PasswordManager.Tests.Fixtures
                 await AdminSupabaseClient.InitializeAsync();
             }
 
-            // Build the real dependency chain
             SessionService = new SessionService();
+            AuthClient = new SupabaseAuthClient(SupabaseClient);
             VaultRepository = new VaultRepository(SupabaseClient);
             UserProfileService = new UserProfileService(VaultRepository);
 
             AuthService = new AuthService(
-                SupabaseClient,
+                AuthClient,
                 CryptoService,
                 UserProfileService,
                 VaultRepository,

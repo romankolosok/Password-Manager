@@ -68,6 +68,7 @@ namespace PasswordManager.App
             await supabase.InitializeAsync();
 
             services.AddSingleton(supabase);
+            services.AddSingleton<IAuthClient>(new SupabaseAuthClient(supabase));
 
             services.AddSingleton<ICryptoService, CryptoService>();
             services.AddSingleton<ISessionService, SessionService>();
@@ -79,7 +80,7 @@ namespace PasswordManager.App
             services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
             services.AddSingleton<IAuthCoordinator, AuthCoordinator>();
             services.AddSingleton<IUserProfileService, UserProfileService>();
-            services.AddSingleton<ISupabaseExceptionMapper, SupabaseExceptionMapper>();
+            services.AddSingleton<IAuthExceptionMapper, SupabaseExceptionMapper>();
             services.AddSingleton<IDialogService, DialogService>();
             services.AddLogging();
 

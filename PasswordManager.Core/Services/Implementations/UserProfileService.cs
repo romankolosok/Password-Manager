@@ -1,4 +1,5 @@
 using PasswordManager.Core.Entities;
+using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Interfaces;
 using System;
@@ -22,9 +23,8 @@ namespace PasswordManager.Core.Services.Implementations
                 await _vaultRepository.CreateUserProfileAsync(profile);
                 return Result.Ok();
             }
-            catch (Supabase.Postgrest.Exceptions.PostgrestException ex)
+            catch (RepositoryException ex)
             {
-                // Supabase-specific exceptions (e.g., constraint violations, RLS policy failures)
                 return Result.Fail($"Database error while creating profile: {ex.Message}");
             }
             catch (Exception ex)
@@ -46,7 +46,7 @@ namespace PasswordManager.Core.Services.Implementations
 
                 return Result<UserProfileEntity>.Ok(profile);
             }
-            catch (Supabase.Postgrest.Exceptions.PostgrestException ex)
+            catch (RepositoryException ex)
             {
                 return Result<UserProfileEntity>.Fail($"Database error while fetching profile: {ex.Message}");
             }
@@ -63,7 +63,7 @@ namespace PasswordManager.Core.Services.Implementations
                 await _vaultRepository.UpdateUserProfileAsync(profile);
                 return Result.Ok();
             }
-            catch (Supabase.Postgrest.Exceptions.PostgrestException ex)
+            catch (RepositoryException ex)
             {
                 return Result.Fail($"Database error while updating profile: {ex.Message}");
             }

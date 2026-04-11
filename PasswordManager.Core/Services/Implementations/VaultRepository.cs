@@ -1,5 +1,7 @@
 using PasswordManager.Core.Entities;
+using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Services.Interfaces;
+using Supabase.Postgrest.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -17,26 +19,47 @@ namespace PasswordManager.Core.Services.Implementations
 
         public async Task CreateUserProfileAsync(UserProfileEntity profile)
         {
-            var options = new Supabase.Postgrest.QueryOptions { Returning = Supabase.Postgrest.QueryOptions.ReturnType.Minimal };
-            await _supabase.From<UserProfileEntity>().Insert(profile, options);
+            try
+            {
+                var options = new Supabase.Postgrest.QueryOptions { Returning = Supabase.Postgrest.QueryOptions.ReturnType.Minimal };
+                await _supabase.From<UserProfileEntity>().Insert(profile, options);
+            }
+            catch (PostgrestException ex)
+            {
+                throw new RepositoryException(ex.Message, ex);
+            }
         }
 
         public async Task DeleteEntryAsync(Guid userId, Guid entryId)
         {
-            await _supabase
-                .From<VaultEntryEntity>()
-                .Where(x => x.Id == entryId)
-                .Delete();
+            try
+            {
+                await _supabase
+                    .From<VaultEntryEntity>()
+                    .Where(x => x.Id == entryId)
+                    .Delete();
+            }
+            catch (PostgrestException ex)
+            {
+                throw new RepositoryException(ex.Message, ex);
+            }
         }
 
         public async Task<List<VaultEntryEntity>> GetAllEntriesAsync(Guid userId)
         {
-            var response = await _supabase
-                .From<VaultEntryEntity>()
-                .Order(x => x.UpdatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
-                .Get();
+            try
+            {
+                var response = await _supabase
+                    .From<VaultEntryEntity>()
+                    .Order(x => x.UpdatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+                    .Get();
 
-            return response.Models;
+                return response.Models;
+            }
+            catch (PostgrestException ex)
+            {
+                throw new RepositoryException(ex.Message, ex);
+            }
         }
 
         public async Task<VaultEntryEntity?> GetEntryAsync(Guid userId, Guid entryId)
@@ -52,8 +75,11 @@ namespace PasswordManager.Core.Services.Implementations
             }
             catch (InvalidOperationException)
             {
-                // Single() throws when no record is found
                 return null;
+            }
+            catch (PostgrestException ex)
+            {
+                throw new RepositoryException(ex.Message, ex);
             }
         }
 
@@ -70,26 +96,43 @@ namespace PasswordManager.Core.Services.Implementations
             }
             catch (InvalidOperationException)
             {
-                // Single() throws when no record is found
                 return null;
+            }
+            catch (PostgrestException ex)
+            {
+                throw new RepositoryException(ex.Message, ex);
             }
         }
 
         public async Task UpsertEntryAsync(VaultEntryEntity entry)
         {
-            entry.UpdatedAt = DateTime.UtcNow;
-            await _supabase.From<VaultEntryEntity>().Upsert(entry);
+            try
+            {
+                entry.UpdatedAt = DateTime.UtcNow;
+                await _supabase.From<VaultEntryEntity>().Upsert(entry);
+            }
+            catch (PostgrestException ex)
+            {
+                throw new RepositoryException(ex.Message, ex);
+            }
         }
 
         public async Task UpdateUserProfileAsync(UserProfileEntity profile)
         {
-            var options = new Supabase.Postgrest.QueryOptions
+            try
             {
-                Returning = Supabase.Postgrest.QueryOptions.ReturnType.Minimal
-            };
-            await _supabase.From<UserProfileEntity>()
-                .Where(x => x.Id == profile.Id)
-                .Update(profile, options);
+                var options = new Supabase.Postgrest.QueryOptions
+                {
+                    Returning = Supabase.Postgrest.QueryOptions.ReturnType.Minimal
+                };
+                await _supabase.From<UserProfileEntity>()
+                    .Where(x => x.Id == profile.Id)
+                    .Update(profile, options);
+            }
+            catch (PostgrestException ex)
+            {
+                throw new RepositoryException(ex.Message, ex);
+            }
         }
     }
 }

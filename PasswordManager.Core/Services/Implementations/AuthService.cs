@@ -2,9 +2,9 @@ using Microsoft.Extensions.Logging;
 using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Helpers;
 using PasswordManager.Core.Models;
+using PasswordManager.Core.Models.Auth;
 using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Core.Validators;
-using Supabase.Gotrue;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -16,12 +16,12 @@ namespace PasswordManager.Core.Services.Implementations
 {
     public class AuthService : IAuthService
     {
-        private readonly Supabase.Client _supabase;
+        private readonly IAuthClient _authClient;
         private readonly ICryptoService _cryptoService;
         private readonly IUserProfileService _userProfileService;
         private readonly IVaultRepository _vaultRepository;
         private readonly ISessionService _sessionService;
-        private readonly ISupabaseExceptionMapper _exceptionMapper;
+        private readonly IAuthExceptionMapper _exceptionMapper;
         private readonly ILogger<AuthService> _logger;
         private readonly PasswordValidator _passwordValidator = new();
         private readonly EmailValidator _emailValidator = new();
@@ -30,15 +30,15 @@ namespace PasswordManager.Core.Services.Implementations
         public string? CurrentUserEmail => _sessionService.CurrentUserEmail;
 
         public AuthService(
-            Supabase.Client supabase,
+            IAuthClient authClient,
             ICryptoService cryptoService,
             IUserProfileService userProfileService,
             IVaultRepository vaultRepository,
             ISessionService sessionService,
-            ISupabaseExceptionMapper exceptionMapper,
+            IAuthExceptionMapper exceptionMapper,
             ILogger<AuthService> logger)
         {
-            _supabase = supabase;
+            _authClient = authClient;
             _cryptoService = cryptoService;
             _userProfileService = userProfileService;
             _vaultRepository = vaultRepository;
@@ -46,22 +46,21 @@ namespace PasswordManager.Core.Services.Implementations
             _exceptionMapper = exceptionMapper;
             _logger = logger;
 
-            _supabase.Auth.AddStateChangedListener(OnAuthStateChanged);
+            _authClient.AddStateChangedListener(OnAuthStateChanged);
         }
 
         [ExcludeFromCodeCoverage]
-        private void OnAuthStateChanged(object? sender, Supabase.Gotrue.Constants.AuthState state)
+        private void OnAuthStateChanged(AuthStateKind state)
         {
             switch (state)
             {
-                case Supabase.Gotrue.Constants.AuthState.SignedOut:
+                case AuthStateKind.SignedOut:
                     _logger.LogInformation("Auth state changed: SignedOut");
                     _sessionService.ClearSession();
                     break;
-                case Supabase.Gotrue.Constants.AuthState.TokenRefreshed:
+                case AuthStateKind.TokenRefreshed:
                     _logger.LogInformation("Auth state changed: TokenRefreshed");
-                    // Update access token in session
-                    var session = _supabase.Auth.CurrentSession;
+                    var session = _authClient.CurrentSession;
                     if (session?.AccessToken != null && _sessionService.CurrentUserId != null)
                     {
                         _sessionService.SetUser(
@@ -71,10 +70,10 @@ namespace PasswordManager.Core.Services.Implementations
                         );
                     }
                     break;
-                case Supabase.Gotrue.Constants.AuthState.SignedIn:
+                case AuthStateKind.SignedIn:
                     _logger.LogInformation("Auth state changed: SignedIn");
                     break;
-                case Supabase.Gotrue.Constants.AuthState.UserUpdated:
+                case AuthStateKind.UserUpdated:
                     _logger.LogInformation("Auth state changed: UserUpdated");
                     break;
             }
@@ -82,7 +81,6 @@ namespace PasswordManager.Core.Services.Implementations
 
         public async Task<Result> RegisterAsync(string email, string masterPassword)
         {
-            // Validate inputs
             var validationResult = ValidateCredentials(email, masterPassword);
             if (!validationResult.Success)
             {
@@ -91,7 +89,6 @@ namespace PasswordManager.Core.Services.Implementations
 
             var (salt, kek) = CreateCryptographicMaterials(masterPassword);
 
-            // Generate a random DEK and encrypt it with the password-derived KEK
             var dekBytes = new byte[32];
             RandomNumberGenerator.Fill(dekBytes);
             var dekBase64 = Convert.ToBase64String(dekBytes);
@@ -111,7 +108,7 @@ namespace PasswordManager.Core.Services.Implementations
 
             var session = sessionResult.Value;
 
-            var signUpValidation = ValidateSignUpSession(session, email);
+            var signUpValidation = await ValidateSignUpSessionAsync(session, email);
             if (signUpValidation != null)
                 return signUpValidation;
 
@@ -119,14 +116,13 @@ namespace PasswordManager.Core.Services.Implementations
             if (string.IsNullOrEmpty(userIdStr))
                 return Result.Fail("Invalid user ID.");
             var authUserId = Guid.Parse(userIdStr);
-            await _supabase.Auth.SignOut();
+            await _authClient.SignOutAsync();
             _logger.LogInformation("User {UserId} registered successfully; redirecting to login", authUserId);
             return Result.Ok();
         }
 
         public async Task<Result> LoginAsync(string email, string masterPassword)
         {
-            // Authenticate with Supabase
             var sessionResult = await AuthenticateAsync(email, masterPassword);
             if (!sessionResult.Success)
             {
@@ -135,7 +131,6 @@ namespace PasswordManager.Core.Services.Implementations
 
             var session = sessionResult.Value;
 
-            // Validate session and user id (defensive guards)
             var invalidSessionResult = ValidateLoginSession(session, email);
             if (invalidSessionResult != null)
             {
@@ -149,15 +144,13 @@ namespace PasswordManager.Core.Services.Implementations
             }
             var authUserId = Guid.Parse(userIdStr);
 
-            // Set temporary session for profile retrieval
             _sessionService.SetUser(authUserId, session.User.Email ?? email, session.AccessToken);
 
-            // Verify master password and derive key
             var verificationResult = await VerifyMasterPasswordAsync(authUserId, masterPassword);
             if (!verificationResult.Success)
             {
                 _sessionService.ClearSession();
-                await _supabase.Auth.SignOut();
+                await _authClient.SignOutAsync();
                 return verificationResult;
             }
 
@@ -172,7 +165,7 @@ namespace PasswordManager.Core.Services.Implementations
         {
             try
             {
-                var session = await _supabase.Auth.VerifyOTP(email, otpCode, Constants.EmailOtpType.Signup);
+                var session = await _authClient.VerifyOTPAsync(email, otpCode, OtpType.Signup);
                 if (session?.User == null)
                 {
                     return Result.Fail(AuthMessages.OtpInvalidOrExpired);
@@ -190,7 +183,7 @@ namespace PasswordManager.Core.Services.Implementations
         {
             try
             {
-                var session = await _supabase.Auth.VerifyOTP(email, otpCode, Constants.EmailOtpType.Recovery);
+                var session = await _authClient.VerifyOTPAsync(email, otpCode, OtpType.Recovery);
                 if (session?.User == null)
                     return Result.Fail(AuthMessages.OtpInvalidOrExpired);
 
@@ -214,7 +207,7 @@ namespace PasswordManager.Core.Services.Implementations
         {
             try
             {
-                await _supabase.Auth.ResetPasswordForEmail(email);
+                await _authClient.ResetPasswordForEmailAsync(email);
                 _logger.LogInformation("Password reset email sent to {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result.Ok();
             }
@@ -229,7 +222,7 @@ namespace PasswordManager.Core.Services.Implementations
         {
             try
             {
-                await _supabase.Auth.SignInWithOtp(new SignInWithPasswordlessEmailOptions(email));
+                await _authClient.SignInWithOtpAsync(email);
                 _logger.LogInformation("Sent OTP confirmation email to {Email}", Sanitizer.SanitizeEmailForLogging(email));
                 return Result.Ok();
             }
@@ -245,7 +238,7 @@ namespace PasswordManager.Core.Services.Implementations
         {
             try
             {
-                await _supabase.Auth.SignOut();
+                await _authClient.SignOutAsync();
             }
             catch (Exception ex)
             {
@@ -260,11 +253,10 @@ namespace PasswordManager.Core.Services.Implementations
 
         public bool IsLocked()
         {
-            // Check both Supabase session and internal session
-            var hasSupabaseSession = _supabase.Auth.CurrentSession != null;
+            var hasAuthSession = _authClient.CurrentSession != null;
             var hasInternalSession = _sessionService.IsActive();
 
-            return !hasSupabaseSession || !hasInternalSession;
+            return !hasAuthSession || !hasInternalSession;
         }
 
         public async Task<Result> ChangeMasterPasswordAsync(string currentPassword, string newPassword)
@@ -292,7 +284,6 @@ namespace PasswordManager.Core.Services.Implementations
             if (string.IsNullOrEmpty(profile.EncryptedDEK))
                 return Result.Fail("Invalid email or password.");
 
-            // DEK path: decrypt DEK with current KEK
             var encryptedDekResult = EncryptedBlob.FromBase64String(profile.EncryptedDEK);
             if (!encryptedDekResult.Success)
                 return Result.Fail("Invalid email or password.");
@@ -303,11 +294,9 @@ namespace PasswordManager.Core.Services.Implementations
 
             dek = Convert.FromBase64String(dekResult.Value);
 
-            // Generate new salt and KEK for new password
             var newSalt = _cryptoService.GenerateSalt();
             var newKek = _cryptoService.DeriveKey(newPassword, newSalt);
 
-            // Re-wrap DEK with new KEK
             var dekBase64 = Convert.ToBase64String(dek);
             var encryptedNewDekResult = _cryptoService.Encrypt(dekBase64, newKek);
             if (!encryptedNewDekResult.Success)
@@ -315,11 +304,11 @@ namespace PasswordManager.Core.Services.Implementations
 
             try
             {
-                await _supabase.Auth.Update(new UserAttributes { Password = newPassword });
+                await _authClient.UpdateUserAsync(newPassword);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to update Supabase Auth password for user {UserId}", userId);
+                _logger.LogWarning(ex, "Failed to update Auth password for user {UserId}", userId);
                 return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
 
@@ -355,7 +344,6 @@ namespace PasswordManager.Core.Services.Implementations
             if (string.IsNullOrEmpty(profile.EncryptedDEK))
                 return Result<string>.Fail("Recovery key setup is not supported for legacy accounts.");
 
-            // Do not overwrite an existing recovery key. It is meant to be shown once to the user.
             if (!string.IsNullOrEmpty(profile.RecoveryEncryptedDEK) && !string.IsNullOrEmpty(profile.RecoverySalt))
                 return Result<string>.Fail("Recovery key is already set up for this account.");
 
@@ -370,7 +358,6 @@ namespace PasswordManager.Core.Services.Implementations
                 return Result<string>.Fail("Session key not available. Please log in again.");
             }
 
-            // random 32-byte recovery key
             var recoveryKeyBytes = new byte[32];
             RandomNumberGenerator.Fill(recoveryKeyBytes);
             var recoveryKeyBase64 = Convert.ToBase64String(recoveryKeyBytes);
@@ -422,11 +409,9 @@ namespace PasswordManager.Core.Services.Implementations
             if (string.IsNullOrEmpty(profile.RecoveryEncryptedDEK) || string.IsNullOrEmpty(profile.RecoverySalt))
                 return Result.Fail("No recovery key has been set up for this account.");
 
-            // Derive recovery KEK from provided recovery key
             var recoverySalt = Convert.FromBase64String(profile.RecoverySalt);
             var recoveryKek = _cryptoService.DeriveKey(recoveryKey, recoverySalt);
 
-            // Decrypt DEK using recovery KEK
             var encryptedRecoveryDekResult = EncryptedBlob.FromBase64String(profile.RecoveryEncryptedDEK);
             if (!encryptedRecoveryDekResult.Success)
                 return Result.Fail("Invalid recovery data.");
@@ -437,7 +422,6 @@ namespace PasswordManager.Core.Services.Implementations
 
             var dek = Convert.FromBase64String(dekResult.Value);
 
-            // Generate new salt and KEK for new password
             var newSalt = _cryptoService.GenerateSalt();
             var newKek = _cryptoService.DeriveKey(newMasterPassword, newSalt);
 
@@ -446,14 +430,13 @@ namespace PasswordManager.Core.Services.Implementations
             if (!encryptedNewDekResult.Success)
                 return Result.Fail("Failed to re-encrypt vault key. Please try again.");
 
-            // Update Supabase Auth password
             try
             {
-                await _supabase.Auth.Update(new UserAttributes { Password = newMasterPassword });
+                await _authClient.UpdateUserAsync(newMasterPassword);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to update Supabase Auth password during recovery for user {UserId}", userId);
+                _logger.LogWarning(ex, "Failed to update Auth password during recovery for user {UserId}", userId);
                 return Result.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
 
@@ -495,7 +478,7 @@ namespace PasswordManager.Core.Services.Implementations
         }
 
         [ExcludeFromCodeCoverage]
-        private Result? ValidateSignUpSession(Session? session, string email)
+        private async Task<Result?> ValidateSignUpSessionAsync(AuthSession? session, string email)
         {
             if (session?.User == null)
             {
@@ -506,7 +489,7 @@ namespace PasswordManager.Core.Services.Implementations
             if (string.IsNullOrEmpty(session.User.Id))
             {
                 _logger.LogError("User ID is null or empty after signup for {Email}", Sanitizer.SanitizeEmailForLogging(email));
-                _supabase.Auth.SignOut();
+                await _authClient.SignOutAsync();
                 return Result.Fail("Registration failed. Invalid user ID.");
             }
 
@@ -514,7 +497,7 @@ namespace PasswordManager.Core.Services.Implementations
         }
 
         [ExcludeFromCodeCoverage]
-        private Result? ValidateLoginSession(Session? session, string email)
+        private Result? ValidateLoginSession(AuthSession? session, string email)
         {
             if (session?.User == null)
             {
@@ -531,45 +514,41 @@ namespace PasswordManager.Core.Services.Implementations
         }
 
         [ExcludeFromCodeCoverage]
-        private async Task<Result<Session?>> CreateAuthSessionAsync(
+        private async Task<Result<AuthSession?>> CreateAuthSessionAsync(
             string email,
             string masterPassword,
             Dictionary<string, object>? signUpMetadata = null)
         {
             try
             {
-                var options = signUpMetadata != null
-                    ? new SignUpOptions { Data = signUpMetadata }
-                    : null;
-                var session = await _supabase.Auth.SignUp(email, masterPassword, options);
-
-                return Result<Session?>.Ok(session);
+                var session = await _authClient.SignUpAsync(email, masterPassword, signUpMetadata);
+                return Result<AuthSession?>.Ok(session);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Registration failed for {Email}", Sanitizer.SanitizeEmailForLogging(email));
-                return Result<Session?>.Fail(_exceptionMapper.MapAuthException(ex).Message);
+                return Result<AuthSession?>.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }
 
         [ExcludeFromCodeCoverage]
-        private async Task<Result<Session>> AuthenticateAsync(string email, string masterPassword)
+        private async Task<Result<AuthSession>> AuthenticateAsync(string email, string masterPassword)
         {
             try
             {
-                var session = await _supabase.Auth.SignIn(email, masterPassword);
+                var session = await _authClient.SignInAsync(email, masterPassword);
 
                 if (session?.User == null)
                 {
-                    return Result<Session>.Fail("Invalid email or password.");
+                    return Result<AuthSession>.Fail("Invalid email or password.");
                 }
 
-                return Result<Session>.Ok(session);
+                return Result<AuthSession>.Ok(session);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Login failed for {Email}", Sanitizer.SanitizeEmailForLogging(email));
-                return Result<Session>.Fail(_exceptionMapper.MapAuthException(ex).Message);
+                return Result<AuthSession>.Fail(_exceptionMapper.MapAuthException(ex).Message);
             }
         }
 
@@ -580,7 +559,7 @@ namespace PasswordManager.Core.Services.Implementations
             return (salt, key);
         }
 
-        private async Task<Result<byte[]>> VerifyMasterPasswordAsync(Guid userId, string masterPassword)
+        internal async Task<Result<byte[]>> VerifyMasterPasswordAsync(Guid userId, string masterPassword)
         {
             var profileResult = await _userProfileService.GetProfileAsync(userId);
             if (!profileResult.Success)
@@ -597,7 +576,6 @@ namespace PasswordManager.Core.Services.Implementations
                 if (string.IsNullOrEmpty(profile.EncryptedDEK))
                     return Result<byte[]>.Fail("Invalid email or password.");
 
-                // DEK path: decrypt the DEK with the password-derived KEK; store DEK as session key
                 var encryptedDekResult = EncryptedBlob.FromBase64String(profile.EncryptedDEK);
                 if (!encryptedDekResult.Success)
                     return Result<byte[]>.Fail("Invalid email or password.");

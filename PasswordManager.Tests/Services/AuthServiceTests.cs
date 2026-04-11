@@ -1,10 +1,11 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using PasswordManager.Core.Entities;
+using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Models;
 using PasswordManager.Core.Services.Implementations;
+using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Tests.Fixtures;
-using System.Reflection;
 
 namespace PasswordManager.Tests.Services
 {
@@ -15,18 +16,6 @@ namespace PasswordManager.Tests.Services
         public AuthServiceTests(AuthServiceFixture fixture)
         {
             _fixture = fixture;
-        }
-
-        private static async Task<Result<byte[]>> InvokeVerifyMasterPasswordAsync(
-            AuthService service,
-            Guid userId,
-            string password)
-        {
-            var method = typeof(AuthService)
-                .GetMethod("VerifyMasterPasswordAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-
-            var task = (Task<Result<byte[]>>)method.Invoke(service, new object[] { userId, password })!;
-            return await task;
         }
 
 
@@ -49,7 +38,7 @@ namespace PasswordManager.Tests.Services
                 .Setup(s => s.GetProfileAsync(userId))
                 .ReturnsAsync(Result<UserProfileEntity>.Ok(profile));
 
-            var result = await InvokeVerifyMasterPasswordAsync(service, userId, "ValidPassword1!");
+            var result = await service.VerifyMasterPasswordAsync(userId, "ValidPassword1!");
 
             Assert.False(result.Success);
             Assert.Equal("Invalid email or password.", result.Message);
@@ -74,7 +63,7 @@ namespace PasswordManager.Tests.Services
                 .Setup(s => s.GetProfileAsync(userId))
                 .ReturnsAsync(Result<UserProfileEntity>.Ok(profile));
 
-            var result = await InvokeVerifyMasterPasswordAsync(service, userId, "ValidPassword1!");
+            var result = await service.VerifyMasterPasswordAsync(userId, "ValidPassword1!");
 
             Assert.False(result.Success);
             Assert.Equal("Invalid email or password.", result.Message);
@@ -116,7 +105,7 @@ namespace PasswordManager.Tests.Services
                 .Setup(c => c.Decrypt(It.IsAny<EncryptedBlob>(), It.IsAny<byte[]>()))
                 .Returns(Result<string>.Fail("decryption failed"));
 
-            var result = await InvokeVerifyMasterPasswordAsync(service, userId, password);
+            var result = await service.VerifyMasterPasswordAsync(userId, password);
 
             Assert.False(result.Success);
             Assert.Equal("Invalid email or password.", result.Message);
@@ -158,7 +147,7 @@ namespace PasswordManager.Tests.Services
                 .Setup(c => c.Decrypt(It.IsAny<EncryptedBlob>(), It.IsAny<byte[]>()))
                 .Throws(new InvalidOperationException("decryption failed"));
 
-            var result = await InvokeVerifyMasterPasswordAsync(service, userId, password);
+            var result = await service.VerifyMasterPasswordAsync(userId, password);
 
             Assert.False(result.Success);
             Assert.Equal("Invalid email or password.", result.Message);
@@ -358,7 +347,7 @@ namespace PasswordManager.Tests.Services
         }
 
         [Fact]
-        public async Task ChangeMasterPasswordAsyncReturnsFailureWhenSupabaseAuthUpdateFails()
+        public async Task ChangeMasterPasswordAsyncReturnsFailureWhenAuthUpdateFails()
         {
             _fixture.Reset();
             var service = _fixture.CreateService();
@@ -404,6 +393,14 @@ namespace PasswordManager.Tests.Services
             _fixture.CryptoService
                 .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
                 .Returns(Result<EncryptedBlob>.Ok(blob));
+
+            _fixture.AuthClient
+                .Setup(a => a.UpdateUserAsync(It.IsAny<string>()))
+                .ThrowsAsync(new AuthClientException("auth update failed", 500));
+
+            _fixture.ExceptionMapper
+                .Setup(m => m.MapAuthException(It.IsAny<Exception>()))
+                .Returns(Result.Fail("Auth update failed."));
 
             var result = await service.ChangeMasterPasswordAsync("current", "NewPassword1!");
 

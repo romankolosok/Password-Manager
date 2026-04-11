@@ -8,27 +8,16 @@ namespace PasswordManager.Tests.Fixtures
 {
     public class AuthServiceFixture
     {
-        public Supabase.Client SupabaseClient { get; }
+        public Mock<IAuthClient> AuthClient { get; } = new();
         public Mock<ICryptoService> CryptoService { get; } = new();
         public Mock<IUserProfileService> UserProfileService { get; } = new();
         public Mock<IVaultRepository> VaultRepository { get; } = new();
         public Mock<ISessionService> SessionService { get; } = new();
-        public Mock<SupabaseExceptionMapper> ExceptionMapper { get; } = new();
+        public Mock<IAuthExceptionMapper> ExceptionMapper { get; } = new();
         public Mock<ILogger<AuthService>> Logger { get; } = new();
 
-        public AuthServiceFixture()
-        {
-            // For unit tests we never hit the network; a dummy client is sufficient.
-            var options = new Supabase.SupabaseOptions
-            {
-                AutoRefreshToken = false,
-                AutoConnectRealtime = false
-            };
-            SupabaseClient = new Supabase.Client("http://localhost", "test-anon-key", options);
-        }
-
         public AuthService CreateService() =>
-            new(SupabaseClient,
+            new(AuthClient.Object,
                 CryptoService.Object,
                 UserProfileService.Object,
                 VaultRepository.Object,
@@ -38,6 +27,7 @@ namespace PasswordManager.Tests.Fixtures
 
         public void Reset()
         {
+            AuthClient.Reset();
             CryptoService.Reset();
             UserProfileService.Reset();
             VaultRepository.Reset();
@@ -47,4 +37,3 @@ namespace PasswordManager.Tests.Fixtures
         }
     }
 }
-

@@ -347,11 +347,14 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public void InactivityTimerElapsedClearsSession()
         {
+            using var signal = new ManualResetEventSlim(false);
+            _sessionService.VaultLocked += (s, e) => signal.Set();
+
             _sessionService.InactivityTimeout = TimeSpan.FromMilliseconds(100);
             _sessionService.SetDerivedKey(new byte[32]);
             _sessionService.SetUser(Guid.NewGuid(), "a@a.x", "token");
 
-            Thread.Sleep(300);
+            Assert.True(signal.Wait(TimeSpan.FromSeconds(5)), "VaultLocked was not raised within timeout");
 
             Assert.False(_sessionService.IsActive());
             Assert.Null(_sessionService.CurrentUserId);
@@ -362,15 +365,13 @@ namespace PasswordManager.Tests.Services
         [Fact]
         public void InactivityTimerElapsedRaisesVaultLockedEvent()
         {
-            var eventRaised = false;
-            _sessionService.VaultLocked += (s, e) => eventRaised = true;
+            using var signal = new ManualResetEventSlim(false);
+            _sessionService.VaultLocked += (s, e) => signal.Set();
 
             _sessionService.InactivityTimeout = TimeSpan.FromMilliseconds(100);
             _sessionService.SetDerivedKey(new byte[32]);
 
-            Thread.Sleep(300);
-
-            Assert.True(eventRaised);
+            Assert.True(signal.Wait(TimeSpan.FromSeconds(5)), "VaultLocked was not raised within timeout");
         }
 
     }

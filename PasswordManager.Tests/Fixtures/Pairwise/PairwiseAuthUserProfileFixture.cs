@@ -6,35 +6,42 @@ using PasswordManager.Core.Services.Interfaces;
 
 namespace PasswordManager.Tests.Fixtures.Pairwise
 {
-    public class PairwiseAuthExMapperFixture
+    public class PairwiseAuthUserProfileFixture
     {
         public Mock<IAuthClient> AuthClient { get; } = new();
         public Mock<ICryptoService> CryptoService { get; } = new();
-        public Mock<IUserProfileService> UserProfileService { get; } = new();
         public Mock<IVaultRepository> VaultRepository { get; } = new();
         public Mock<ISessionService> SessionService { get; } = new();
+        public Mock<IAuthExceptionMapper> ExceptionMapper { get; } = new();
         public Mock<ILogger<AuthService>> Logger { get; } = new();
 
-        private readonly IAuthExceptionMapper _exceptionMapper = new SupabaseExceptionMapper();
+        public IUserProfileService UserProfileService { get; private set; }
+
+        public PairwiseAuthUserProfileFixture()
+        {
+            UserProfileService = new UserProfileService(VaultRepository.Object);
+        }
 
         public AuthService CreateService() =>
             new(
                 AuthClient.Object,
                 CryptoService.Object,
-                UserProfileService.Object,
+                UserProfileService,
                 VaultRepository.Object,
                 SessionService.Object,
-                _exceptionMapper,
+                ExceptionMapper.Object,
                 Logger.Object);
 
         public void Reset()
         {
             AuthClient.Reset();
             CryptoService.Reset();
-            UserProfileService.Reset();
             VaultRepository.Reset();
             SessionService.Reset();
+            ExceptionMapper.Reset();
             Logger.Reset();
+
+            UserProfileService = new UserProfileService(VaultRepository.Object);
         }
     }
 }

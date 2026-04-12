@@ -3,8 +3,6 @@ using Moq;
 using PasswordManager.Core.Entities;
 using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Models;
-using PasswordManager.Core.Services.Implementations;
-using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Tests.Fixtures;
 
 namespace PasswordManager.Tests.Services
@@ -1000,6 +998,73 @@ namespace PasswordManager.Tests.Services
                 .Returns(true);
 
             Assert.True(service.IsLocked());
+        }
+
+        [Fact]
+        public async Task SendOTPConfirmationAsyncReturnsSuccess()
+        {
+            _fixture.Reset();
+
+            _fixture.AuthClient.Setup(c => c.SignInWithOtpAsync(It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+
+            var service = _fixture.CreateService();
+
+            var result = await service.SendOTPConfirmationAsync("user@example.com");
+            Assert.True(result.Success);
+            _fixture.AuthClient.Verify(c => c.SignInWithOtpAsync("user@example.com"), Times.Once);
+        }
+
+        [Fact]
+        public async Task SendOPTConfirmationAsyncReturnsFailureOnEmailResendFailure()
+        {
+            _fixture.Reset();
+
+            _fixture.AuthClient.Setup(c => c.SignInWithOtpAsync(It.IsAny<string>()))
+                .ThrowsAsync(new AuthClientException("Failed to send OTP", 500));
+
+            _fixture.ExceptionMapper
+                .Setup(m => m.MapAuthException(It.IsAny<Exception>()))
+                .Returns(Result.Fail("Failed to send OTP"));
+
+            var service = _fixture.CreateService();
+            var result = await service.SendOTPConfirmationAsync("user@example.com");
+
+            Assert.False(result.Success);
+        }
+
+        [Fact]
+        public async Task RecoverVaultAsyncReturnsFailureWhenUpdateUserAsyncFails()
+        {
+            _fixture.Reset();
+
+            _fixture.AuthClient.Setup(c => c.UpdateUserAsync(It.IsAny<string>()))
+                .ThrowsAsync(new AuthClientException("Failed to update master password", 500));
+
+            _fixture.ExceptionMapper.Setup(e => e.MapAuthException(It.IsAny<Exception>()))
+                .Returns(Result.Fail("Failed to update master password"));
+
+            var service = _fixture.CreateService();
+            var result = await service.RecoverVaultAsync("valid-recovery-key", "NewPassword1!");
+
+            Assert.False(result.Success);
+        }
+
+        [Fact]
+        public async Task RecoverVaultAsyncReturnsFailureWhenUpdateUserProfileAsyncFails()
+        {
+            _fixture.Reset();
+
+            _fixture.VaultRepository.Setup(c => c.UpdateUserProfileAsync(It.IsAny<UserProfileEntity>()))
+                .ThrowsAsync(new Exception("Failed to update user profile"));
+
+            _fixture.ExceptionMapper.Setup(e => e.MapAuthException(It.IsAny<Exception>()))
+                .Returns(Result.Fail("Failed to update user profile"));
+
+            var service = _fixture.CreateService();
+            var result = await service.RecoverVaultAsync("valid-recovery-key", "NewPassword1!");
+
+            Assert.False(result.Success);
         }
     }
 }

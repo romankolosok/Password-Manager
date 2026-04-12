@@ -227,7 +227,7 @@ namespace PasswordManager.Tests.Pairwise
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Do NOT seed profile in repository so UpdateUserProfileAsync throws RepositoryException
+            // Do not seed profile in repository so UpdateUserProfileAsync throws RepositoryException
             _fixture.SessionService.Setup(s => s.CurrentUserId).Returns(userId);
             _fixture.UserProfileService
                 .Setup(s => s.GetProfileAsync(userId))

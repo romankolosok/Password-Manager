@@ -2,7 +2,6 @@ using Moq;
 using PasswordManager.Core.Entities;
 using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Models;
-using PasswordManager.Core.Services.Interfaces;
 using PasswordManager.Tests.Fixtures.Pairwise;
 
 namespace PasswordManager.Tests.Pairwise

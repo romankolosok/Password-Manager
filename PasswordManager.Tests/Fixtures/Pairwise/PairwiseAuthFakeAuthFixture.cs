@@ -9,9 +9,7 @@ namespace PasswordManager.Tests.Fixtures.Pairwise
 {
     public class PairwiseAuthFakeAuthFixture
     {
-        private IAuthClient _fakeAuthClient = new FakeAuthClient();
-
-        public IAuthClient FakeAuthClient => _fakeAuthClient;
+        public FakeAuthClient FakeAuthClient { get; private set; } = new();
 
         public Mock<ICryptoService> CryptoService { get; } = new();
         public Mock<IUserProfileService> UserProfileService { get; } = new();
@@ -22,7 +20,7 @@ namespace PasswordManager.Tests.Fixtures.Pairwise
 
         public AuthService CreateService() =>
             new(
-                _fakeAuthClient,
+                FakeAuthClient,
                 CryptoService.Object,
                 UserProfileService.Object,
                 VaultRepository.Object,
@@ -38,7 +36,7 @@ namespace PasswordManager.Tests.Fixtures.Pairwise
             SessionService.Reset();
             ExceptionMapper.Reset();
             Logger.Reset();
-            _fakeAuthClient = new FakeAuthClient();
+            FakeAuthClient = new FakeAuthClient();
         }
     }
 }

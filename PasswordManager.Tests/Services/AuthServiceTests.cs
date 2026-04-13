@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using PasswordManager.Core.Entities;
+using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Models;
-using PasswordManager.Core.Services.Implementations;
+using PasswordManager.Core.Models.Auth;
 using PasswordManager.Tests.Fixtures;
-using System.Reflection;
 
 namespace PasswordManager.Tests.Services
 {
@@ -15,18 +15,6 @@ namespace PasswordManager.Tests.Services
         public AuthServiceTests(AuthServiceFixture fixture)
         {
             _fixture = fixture;
-        }
-
-        private static async Task<Result<byte[]>> InvokeVerifyMasterPasswordAsync(
-            AuthService service,
-            Guid userId,
-            string password)
-        {
-            var method = typeof(AuthService)
-                .GetMethod("VerifyMasterPasswordAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-
-            var task = (Task<Result<byte[]>>)method.Invoke(service, new object[] { userId, password })!;
-            return await task;
         }
 
 
@@ -49,7 +37,7 @@ namespace PasswordManager.Tests.Services
                 .Setup(s => s.GetProfileAsync(userId))
                 .ReturnsAsync(Result<UserProfileEntity>.Ok(profile));
 
-            var result = await InvokeVerifyMasterPasswordAsync(service, userId, "ValidPassword1!");
+            var result = await service.VerifyMasterPasswordAsync(userId, "ValidPassword1!");
 
             Assert.False(result.Success);
             Assert.Equal("Invalid email or password.", result.Message);
@@ -74,7 +62,7 @@ namespace PasswordManager.Tests.Services
                 .Setup(s => s.GetProfileAsync(userId))
                 .ReturnsAsync(Result<UserProfileEntity>.Ok(profile));
 
-            var result = await InvokeVerifyMasterPasswordAsync(service, userId, "ValidPassword1!");
+            var result = await service.VerifyMasterPasswordAsync(userId, "ValidPassword1!");
 
             Assert.False(result.Success);
             Assert.Equal("Invalid email or password.", result.Message);
@@ -116,7 +104,7 @@ namespace PasswordManager.Tests.Services
                 .Setup(c => c.Decrypt(It.IsAny<EncryptedBlob>(), It.IsAny<byte[]>()))
                 .Returns(Result<string>.Fail("decryption failed"));
 
-            var result = await InvokeVerifyMasterPasswordAsync(service, userId, password);
+            var result = await service.VerifyMasterPasswordAsync(userId, password);
 
             Assert.False(result.Success);
             Assert.Equal("Invalid email or password.", result.Message);
@@ -158,7 +146,7 @@ namespace PasswordManager.Tests.Services
                 .Setup(c => c.Decrypt(It.IsAny<EncryptedBlob>(), It.IsAny<byte[]>()))
                 .Throws(new InvalidOperationException("decryption failed"));
 
-            var result = await InvokeVerifyMasterPasswordAsync(service, userId, password);
+            var result = await service.VerifyMasterPasswordAsync(userId, password);
 
             Assert.False(result.Success);
             Assert.Equal("Invalid email or password.", result.Message);
@@ -358,7 +346,7 @@ namespace PasswordManager.Tests.Services
         }
 
         [Fact]
-        public async Task ChangeMasterPasswordAsyncReturnsFailureWhenSupabaseAuthUpdateFails()
+        public async Task ChangeMasterPasswordAsyncReturnsFailureWhenAuthUpdateFails()
         {
             _fixture.Reset();
             var service = _fixture.CreateService();
@@ -404,6 +392,14 @@ namespace PasswordManager.Tests.Services
             _fixture.CryptoService
                 .Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
                 .Returns(Result<EncryptedBlob>.Ok(blob));
+
+            _fixture.AuthClient
+                .Setup(a => a.UpdateUserAsync(It.IsAny<string>()))
+                .ThrowsAsync(new AuthClientException("auth update failed", 500));
+
+            _fixture.ExceptionMapper
+                .Setup(m => m.MapAuthException(It.IsAny<Exception>()))
+                .Returns(Result.Fail("Auth update failed."));
 
             var result = await service.ChangeMasterPasswordAsync("current", "NewPassword1!");
 
@@ -1003,6 +999,121 @@ namespace PasswordManager.Tests.Services
                 .Returns(true);
 
             Assert.True(service.IsLocked());
+        }
+
+        [Fact]
+        public async Task SendOTPConfirmationAsyncReturnsSuccess()
+        {
+            _fixture.Reset();
+
+            _fixture.AuthClient.Setup(c => c.SignInWithOtpAsync(It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+
+            var service = _fixture.CreateService();
+
+            var result = await service.SendOTPConfirmationAsync("user@example.com");
+            Assert.True(result.Success);
+            _fixture.AuthClient.Verify(c => c.SignInWithOtpAsync("user@example.com"), Times.Once);
+        }
+
+        [Fact]
+        public async Task SendOPTConfirmationAsyncReturnsFailureOnEmailResendFailure()
+        {
+            _fixture.Reset();
+
+            _fixture.AuthClient.Setup(c => c.SignInWithOtpAsync(It.IsAny<string>()))
+                .ThrowsAsync(new AuthClientException("Failed to send OTP", 500));
+
+            _fixture.ExceptionMapper
+                .Setup(m => m.MapAuthException(It.IsAny<Exception>()))
+                .Returns(Result.Fail("Failed to send OTP"));
+
+            var service = _fixture.CreateService();
+            var result = await service.SendOTPConfirmationAsync("user@example.com");
+
+            Assert.False(result.Success);
+        }
+
+        [Fact]
+        public async Task RecoverVaultAsyncReturnsFailureWhenUpdateUserAsyncFails()
+        {
+            _fixture.Reset();
+            var service = _fixture.CreateService();
+            var userId = Guid.NewGuid();
+            var dek = Convert.ToBase64String(new byte[32]);
+
+            var blob = new EncryptedBlob { Nonce = new byte[12], Ciphertext = new byte[1], Tag = new byte[16] };
+            var profile = new UserProfileEntity
+            {
+                Id = userId,
+                Salt = Convert.ToBase64String(new byte[16]),
+                EncryptedDEK = "some-dek",
+                RecoveryEncryptedDEK = blob.ToBase64String(),
+                RecoverySalt = Convert.ToBase64String(new byte[16]),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _fixture.SessionService.Setup(s => s.CurrentUserId).Returns(userId);
+            _fixture.UserProfileService.Setup(s => s.GetProfileAsync(userId))
+                .ReturnsAsync(Result<UserProfileEntity>.Ok(profile));
+            _fixture.CryptoService.Setup(c => c.DeriveKey(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(new byte[32]);
+            _fixture.CryptoService.Setup(c => c.Decrypt(It.IsAny<EncryptedBlob>(), It.IsAny<byte[]>()))
+                .Returns(Result<string>.Ok(dek));
+            _fixture.CryptoService.Setup(c => c.GenerateSalt()).Returns(new byte[16]);
+            _fixture.CryptoService.Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(Result<EncryptedBlob>.Ok(blob));
+
+            _fixture.AuthClient.Setup(c => c.UpdateUserAsync(It.IsAny<string>()))
+                .ThrowsAsync(new AuthClientException("auth update failed", 500));
+            _fixture.ExceptionMapper.Setup(m => m.MapAuthException(It.IsAny<Exception>()))
+                .Returns(Result.Fail("Auth update failed."));
+
+            var result = await service.RecoverVaultAsync("valid-recovery-key", "NewPassword1!");
+
+            Assert.False(result.Success);
+        }
+
+        [Fact]
+        public async Task RecoverVaultAsyncReturnsFailureWhenUpdateUserProfileAsyncFails()
+        {
+            _fixture.Reset();
+            var service = _fixture.CreateService();
+            var userId = Guid.NewGuid();
+            var dek = Convert.ToBase64String(new byte[32]);
+
+            var blob = new EncryptedBlob { Nonce = new byte[12], Ciphertext = new byte[1], Tag = new byte[16] };
+            var profile = new UserProfileEntity
+            {
+                Id = userId,
+                Salt = Convert.ToBase64String(new byte[16]),
+                EncryptedDEK = "some-dek",
+                RecoveryEncryptedDEK = blob.ToBase64String(),
+                RecoverySalt = Convert.ToBase64String(new byte[16]),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _fixture.SessionService.Setup(s => s.CurrentUserId).Returns(userId);
+            _fixture.UserProfileService.Setup(s => s.GetProfileAsync(userId))
+                .ReturnsAsync(Result<UserProfileEntity>.Ok(profile));
+            _fixture.CryptoService.Setup(c => c.DeriveKey(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(new byte[32]);
+            _fixture.CryptoService.Setup(c => c.Decrypt(It.IsAny<EncryptedBlob>(), It.IsAny<byte[]>()))
+                .Returns(Result<string>.Ok(dek));
+            _fixture.CryptoService.Setup(c => c.GenerateSalt()).Returns(new byte[16]);
+            _fixture.CryptoService.Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns(Result<EncryptedBlob>.Ok(blob));
+
+            _fixture.AuthClient.Setup(c => c.UpdateUserAsync(It.IsAny<string>()))
+                .ReturnsAsync(new AuthUser { Id = userId.ToString() });
+
+            _fixture.VaultRepository.Setup(r => r.UpdateUserProfileAsync(It.IsAny<UserProfileEntity>()))
+                .ThrowsAsync(new Exception("DB write failed"));
+
+            var result = await service.RecoverVaultAsync("valid-recovery-key", "NewPassword1!");
+
+            Assert.False(result.Success);
+            Assert.Equal("Failed to save profile changes. Please try again.", result.Message);
         }
     }
 }

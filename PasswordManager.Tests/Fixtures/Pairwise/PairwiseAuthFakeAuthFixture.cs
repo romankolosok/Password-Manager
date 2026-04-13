@@ -3,12 +3,14 @@ using Moq;
 using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Services.Implementations;
 using PasswordManager.Core.Services.Interfaces;
+using PasswordManager.Tests.Fakes;
 
-namespace PasswordManager.Tests.Fixtures
+namespace PasswordManager.Tests.Fixtures.Pairwise
 {
-    public class AuthServiceFixture
+    public class PairwiseAuthFakeAuthFixture
     {
-        public Mock<IAuthClient> AuthClient { get; } = new();
+        public FakeAuthClient FakeAuthClient { get; private set; } = new();
+
         public Mock<ICryptoService> CryptoService { get; } = new();
         public Mock<IUserProfileService> UserProfileService { get; } = new();
         public Mock<IVaultRepository> VaultRepository { get; } = new();
@@ -17,7 +19,8 @@ namespace PasswordManager.Tests.Fixtures
         public Mock<ILogger<AuthService>> Logger { get; } = new();
 
         public AuthService CreateService() =>
-            new(AuthClient.Object,
+            new(
+                FakeAuthClient,
                 CryptoService.Object,
                 UserProfileService.Object,
                 VaultRepository.Object,
@@ -27,13 +30,13 @@ namespace PasswordManager.Tests.Fixtures
 
         public void Reset()
         {
-            AuthClient.Reset();
             CryptoService.Reset();
             UserProfileService.Reset();
             VaultRepository.Reset();
             SessionService.Reset();
             ExceptionMapper.Reset();
             Logger.Reset();
+            FakeAuthClient = new FakeAuthClient();
         }
     }
 }

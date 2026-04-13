@@ -1,5 +1,4 @@
 using PasswordManager.Core.Exceptions;
-using Supabase.Gotrue.Exceptions;
 
 namespace PasswordManager.Tests.Exceptions
 {
@@ -7,19 +6,10 @@ namespace PasswordManager.Tests.Exceptions
     {
         private readonly SupabaseExceptionMapper _mapper = new();
 
-        private static GotrueException CreateGotrueException(int statusCode, string message = "")
-        {
-            var ex = new GotrueException(message);
-            typeof(GotrueException)
-                .GetProperty(nameof(GotrueException.StatusCode))!
-                .SetValue(ex, statusCode);
-            return ex;
-        }
-
         [Fact]
-        public void MapAuthExceptionGotrueStatus422ReturnsAlreadyExists()
+        public void MapAuthExceptionStatus422ReturnsAlreadyExists()
         {
-            var ex = CreateGotrueException(422, "already registered");
+            var ex = new AuthClientException("already registered", 422);
 
             var result = _mapper.MapAuthException(ex);
 
@@ -28,9 +18,9 @@ namespace PasswordManager.Tests.Exceptions
         }
 
         [Fact]
-        public void MapAuthExceptionGotrueStatus400ReturnsAuthFailedWhenMessageIsEmpty()
+        public void MapAuthExceptionStatus400ReturnsAuthFailedWhenMessageIsEmpty()
         {
-            var ex = CreateGotrueException(400);
+            var ex = new AuthClientException("", 400);
 
             var result = _mapper.MapAuthException(ex);
 
@@ -39,10 +29,9 @@ namespace PasswordManager.Tests.Exceptions
         }
 
         [Fact]
-        public void MapAuthExceptionGotrueOtpExpiredErrorReturnsOtpInvalidOrExpired()
+        public void MapAuthExceptionOtpExpiredErrorReturnsOtpInvalidOrExpired()
         {
-            // GoTrue returns 403 with error_code otp_expired and msg "Token has expired or is invalid"
-            var ex = CreateGotrueException(403, "Token has expired or is invalid");
+            var ex = new AuthClientException("Token has expired or is invalid", 403);
 
             var result = _mapper.MapAuthException(ex);
 
@@ -51,9 +40,9 @@ namespace PasswordManager.Tests.Exceptions
         }
 
         [Fact]
-        public void MapAuthExceptionGotrueStatus429ReturnsTooManyAttempts()
+        public void MapAuthExceptionStatus429ReturnsTooManyAttempts()
         {
-            var ex = CreateGotrueException(429);
+            var ex = new AuthClientException("", 429);
 
             var result = _mapper.MapAuthException(ex);
 
@@ -62,9 +51,9 @@ namespace PasswordManager.Tests.Exceptions
         }
 
         [Fact]
-        public void MapAuthExceptionGotrueOtherStatusAlreadyRegisteredReturnsAlreadyExists()
+        public void MapAuthExceptionOtherStatusAlreadyRegisteredReturnsAlreadyExists()
         {
-            var ex = CreateGotrueException(500, "User already registered");
+            var ex = new AuthClientException("User already registered", 500);
 
             var result = _mapper.MapAuthException(ex);
 
@@ -73,9 +62,9 @@ namespace PasswordManager.Tests.Exceptions
         }
 
         [Fact]
-        public void MapAuthExceptionGotrueOtherStatusUserAlreadyExistsReturnsAlreadyExists()
+        public void MapAuthExceptionOtherStatusUserAlreadyExistsReturnsAlreadyExists()
         {
-            var ex = CreateGotrueException(500, "user_already_exists");
+            var ex = new AuthClientException("user_already_exists", 500);
 
             var result = _mapper.MapAuthException(ex);
 
@@ -84,9 +73,9 @@ namespace PasswordManager.Tests.Exceptions
         }
 
         [Fact]
-        public void MapAuthExceptionGotrueEmailNotConfirmedReturnsEmailNotConfirmedMessage()
+        public void MapAuthExceptionEmailNotConfirmedReturnsEmailNotConfirmedMessage()
         {
-            var ex = CreateGotrueException(400, "Email not confirmed");
+            var ex = new AuthClientException("Email not confirmed", 400);
 
             var result = _mapper.MapAuthException(ex);
 
@@ -95,9 +84,9 @@ namespace PasswordManager.Tests.Exceptions
         }
 
         [Fact]
-        public void MapAuthExceptionGotrueEmailNotConfirmedSnakeCaseReturnsEmailNotConfirmedMessage()
+        public void MapAuthExceptionEmailNotConfirmedSnakeCaseReturnsEmailNotConfirmedMessage()
         {
-            var ex = CreateGotrueException(400, "email_not_confirmed");
+            var ex = new AuthClientException("email_not_confirmed", 400);
 
             var result = _mapper.MapAuthException(ex);
 
@@ -106,9 +95,9 @@ namespace PasswordManager.Tests.Exceptions
         }
 
         [Fact]
-        public void MapAuthExceptionGotrueOtherStatusInvalidReturnsInvalidEmailOrPassword()
+        public void MapAuthExceptionOtherStatusInvalidReturnsInvalidEmailOrPassword()
         {
-            var ex = CreateGotrueException(500, "Credentials are invalid");
+            var ex = new AuthClientException("Credentials are invalid", 500);
 
             var result = _mapper.MapAuthException(ex);
 
@@ -117,9 +106,9 @@ namespace PasswordManager.Tests.Exceptions
         }
 
         [Fact]
-        public void MapAuthExceptionGotrueOtherStatusUnknownMessageReturnsAuthenticationFailed()
+        public void MapAuthExceptionOtherStatusUnknownMessageReturnsAuthenticationFailed()
         {
-            var ex = CreateGotrueException(500, "auth failure");
+            var ex = new AuthClientException("auth failure", 500);
 
             var result = _mapper.MapAuthException(ex);
 

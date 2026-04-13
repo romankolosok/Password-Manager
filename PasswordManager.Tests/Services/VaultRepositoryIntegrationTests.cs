@@ -1,4 +1,5 @@
 using PasswordManager.Core.Entities;
+using PasswordManager.Core.Exceptions;
 using PasswordManager.Tests.Fixtures;
 
 namespace PasswordManager.Tests.Services
@@ -59,7 +60,7 @@ namespace PasswordManager.Tests.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            await Assert.ThrowsAsync<Supabase.Postgrest.Exceptions.PostgrestException>(
+            await Assert.ThrowsAsync<RepositoryException>(
                 () => _fixture.VaultRepository.CreateUserProfileAsync(duplicateProfile));
         }
 
@@ -352,7 +353,7 @@ namespace PasswordManager.Tests.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            await Assert.ThrowsAsync<Supabase.Postgrest.Exceptions.PostgrestException>(
+            await Assert.ThrowsAsync<RepositoryException>(
                 () => _fixture.VaultRepository.UpsertEntryAsync(entry));
         }
 

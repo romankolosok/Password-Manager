@@ -11,6 +11,6 @@ jobs:
     steps:
       - name: Approve Pull Request
         env:
-          GITHUB_TOKEN: ${{ secrets.PM-PR-PAT }}
+          GITHUB_TOKEN: ${{ secrets.PM_PR_PAT }}
         run: |
           gh pr review ${{ github.event.pull_request.number }} --approve -b "Automated approval for the repository owner ✅"

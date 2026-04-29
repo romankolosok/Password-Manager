@@ -9,6 +9,7 @@ using PasswordManager.App.Views;
 using PasswordManager.Core.Exceptions;
 using PasswordManager.Core.Services.Implementations;
 using PasswordManager.Core.Services.Interfaces;
+using System.Net.Http;
 
 namespace PasswordManager.App
 {
@@ -76,6 +77,14 @@ namespace PasswordManager.App
             services.AddSingleton<IVaultService, VaultService>();
             services.AddSingleton<IPasswordStrengthChecker, ZxcvbnPasswordStrengthChecker>();
             services.AddSingleton<IPasswordGenerator, PasswordGenerator>();
+
+            services.AddSingleton<HttpClient>(_ =>
+            {
+                var client = new HttpClient();
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Crypty/1.0");
+                return client;
+            });
+            services.AddSingleton<IUpdateService, GitHubUpdateService>();
 
             services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
             services.AddSingleton<IAuthCoordinator, AuthCoordinator>();

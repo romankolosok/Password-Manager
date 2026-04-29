@@ -1,0 +1,21 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PasswordManager.App.Views.UpdateNotificationDialog"
+        Title="Update Available" Width="400" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+    <Grid Margin="24" RowDefinitions="*,Auto">
+        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
+            <TextBlock Text="A new version of Crypty is available!"
+                       FontSize="15" FontWeight="SemiBold" Foreground="#374151"/>
+            <TextBlock x:Name="VersionText" FontSize="14" Foreground="#6B7280"/>
+            <TextBlock Text="Download the latest version to get new features and fixes."
+                       TextWrapping="Wrap" FontSize="14" Foreground="#374151"/>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+            <Button Content="Later" Classes="secondary" Click="Later_Click" MinWidth="80"/>
+            <Button Content="Download" Classes="primary" Click="Download_Click" MinWidth="80"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -64,6 +64,8 @@ namespace PasswordManager.App.Services
             main.Activate();
             loginWindow.Close();
             _loginWindow = null;
+
+            _ = CheckForUpdateAsync(main);
         }
 
         public void RequestRegister(Window loginWindow)
@@ -180,6 +182,8 @@ namespace PasswordManager.App.Services
                     confirmOtpWindow.Close();
                     _loginWindow?.Close();
                     _loginWindow = null;
+
+                    _ = CheckForUpdateAsync(main);
                     return;
                 }
 
@@ -260,6 +264,16 @@ namespace PasswordManager.App.Services
             forgotPasswordView.DataContext = forgotPasswordVm;
             forgotPasswordView.Coordinator = this;
             forgotPasswordView.Show();
+        }
+
+        private async Task CheckForUpdateAsync(Window owner)
+        {
+            var updateService = _serviceProvider.GetRequiredService<IUpdateService>();
+            var result = await updateService.CheckForUpdatesAsync();
+            if (!result.UpdateAvailable || result.LatestVersion is null || result.ReleaseUrl is null)
+                return;
+            var dialog = new UpdateNotificationDialog(result.LatestVersion, result.ReleaseUrl);
+            await dialog.ShowDialog<bool?>(owner);
         }
 
         public void OnForgotPasswordSuccess(Window forgotPasswordWindow, string email)
